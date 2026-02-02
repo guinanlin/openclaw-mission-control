@@ -216,9 +216,11 @@ def review_task(
     # Notify assignee (comment.created will exclude author)
     background.add_task(
         notify_openclaw,
-        session,
         NotifyContext(
-            event="comment.created", actor_employee_id=actor_employee_id, task=task, comment=c
+            event="comment.created",
+            actor_employee_id=actor_employee_id,
+            task_id=task.id,
+            comment_id=c.id,
         ),
     )
 
