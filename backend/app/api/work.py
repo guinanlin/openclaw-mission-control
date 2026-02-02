@@ -59,10 +59,9 @@ def create_task(
     session: Session = Depends(get_session),
     actor_employee_id: int = Depends(get_actor_employee_id),
 ):
-    if payload.created_by_employee_id is None:
-        payload = TaskCreate(
-            **{**payload.model_dump(), "created_by_employee_id": actor_employee_id}
-        )
+    # SECURITY / AUDIT: never allow spoofing task creator.
+    # The creator is always the actor making the request.
+    payload = TaskCreate(**{**payload.model_dump(), "created_by_employee_id": actor_employee_id})
 
     if payload.assignee_employee_id is not None:
         _validate_task_assignee(session, payload.assignee_employee_id)
@@ -395,10 +394,9 @@ def create_task_comment(
     session: Session = Depends(get_session),
     actor_employee_id: int = Depends(get_actor_employee_id),
 ):
-    if payload.author_employee_id is None:
-        payload = TaskCommentCreate(
-            **{**payload.model_dump(), "author_employee_id": actor_employee_id}
-        )
+    # SECURITY / AUDIT: never allow spoofing comment authorship.
+    # The author is always the actor making the request.
+    payload = TaskCommentCreate(**{**payload.model_dump(), "author_employee_id": actor_employee_id})
 
     c = TaskComment(**payload.model_dump())
     session.add(c)
