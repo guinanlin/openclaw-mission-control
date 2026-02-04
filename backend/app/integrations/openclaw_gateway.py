@@ -4,10 +4,9 @@ import asyncio
 import json
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import quote, urlencode, urlparse, urlunparse
+from urllib.parse import urlencode, urlparse, urlunparse
 from uuid import uuid4
 
-import httpx
 import websockets
 
 from app.core.config import settings
@@ -30,54 +29,6 @@ def _build_gateway_url() -> str:
     parsed = urlparse(base_url)
     query = urlencode({"token": token})
     return urlunparse(parsed._replace(query=query))
-
-
-def _build_gateway_http_url() -> str:
-    base_url = settings.openclaw_gateway_url or "ws://127.0.0.1:18789"
-    parsed = urlparse(base_url)
-    if parsed.scheme in {"http", "https"}:
-        scheme = parsed.scheme
-    elif parsed.scheme == "wss":
-        scheme = "https"
-    else:
-        scheme = "http"
-    return urlunparse(
-        parsed._replace(scheme=scheme, path="", params="", query="", fragment="")
-    )
-
-
-def _gateway_headers() -> dict[str, str]:
-    headers: dict[str, str] = {}
-    if settings.openclaw_gateway_token:
-        headers["Authorization"] = f"Bearer {settings.openclaw_gateway_token}"
-    return headers
-
-
-async def _http_request(method: str, path: str, payload: dict[str, Any] | None = None) -> Any:
-    base_url = _build_gateway_http_url().rstrip("/")
-    url = f"{base_url}{path}"
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.request(
-                method, url, json=payload, headers=_gateway_headers()
-            )
-        if response.status_code >= 400:
-            raise OpenClawGatewayError(
-                f"{response.status_code}: {response.text or 'Gateway error'}"
-            )
-        if not response.content:
-            return None
-        try:
-            return response.json()
-        except ValueError as exc:
-            preview = response.text.strip()[:200] or "<empty>"
-            raise OpenClawGatewayError(
-                f"Non-JSON response from gateway: {preview}"
-            ) from exc
-    except OpenClawGatewayError:
-        raise
-    except Exception as exc:  # pragma: no cover - transport errors
-        raise OpenClawGatewayError(str(exc)) from exc
 
 
 async def _await_response(ws: websockets.WebSocketClientProtocol, request_id: str) -> Any:
@@ -187,24 +138,3 @@ async def ensure_session(session_key: str, label: str | None = None) -> Any:
         params["label"] = label
     return await openclaw_call("sessions.patch", params)
 
-
-async def list_cron_jobs() -> Any:
-    try:
-        return await _http_request("GET", "/api/v1/cron/jobs")
-    except OpenClawGatewayError:
-        return await _http_request("GET", "/cron/jobs")
-
-
-async def upsert_cron_job(job: dict[str, Any]) -> Any:
-    try:
-        return await _http_request("POST", "/api/v1/cron/jobs", payload=job)
-    except OpenClawGatewayError:
-        return await _http_request("POST", "/cron/jobs", payload=job)
-
-
-async def delete_cron_job(name: str) -> Any:
-    safe_name = quote(name, safe="")
-    try:
-        return await _http_request("DELETE", f"/api/v1/cron/jobs/{safe_name}")
-    except OpenClawGatewayError:
-        return await _http_request("DELETE", f"/cron/jobs/{safe_name}")
