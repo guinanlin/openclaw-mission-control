@@ -120,8 +120,8 @@ export default function AgentsPage() {
     refetchOnMount: "always",
   });
 
-  const boards = boardsQuery.data ?? [];
-  const agents = agentsQuery.data ?? [];
+  const boards = useMemo(() => boardsQuery.data ?? [], [boardsQuery.data]);
+  const agents = useMemo(() => agentsQuery.data ?? [], [agentsQuery.data]);
 
   useEffect(() => {
     if (!boardId && boards.length > 0) {
@@ -285,6 +285,7 @@ export default function AgentsPage() {
     [boards]
   );
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: sortedAgents,
     columns,

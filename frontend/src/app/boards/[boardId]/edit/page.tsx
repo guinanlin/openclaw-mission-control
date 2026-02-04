@@ -53,10 +53,6 @@ export default function EditBoardPage() {
 
   const isFormReady = Boolean(name.trim() && gatewayId);
 
-  const selectedGateway = useMemo(
-    () => gateways.find((gateway) => gateway.id === gatewayId) || null,
-    [gateways, gatewayId]
-  );
   const gatewayOptions = useMemo(
     () => gateways.map((gateway) => ({ value: gateway.id, label: gateway.name })),
     [gateways]

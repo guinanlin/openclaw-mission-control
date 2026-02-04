@@ -72,7 +72,7 @@ export default function GatewaysPage() {
     }
   );
 
-  const gateways = gatewaysQuery.data ?? [];
+  const gateways = useMemo(() => gatewaysQuery.data ?? [], [gatewaysQuery.data]);
   const sortedGateways = useMemo(() => [...gateways], [gateways]);
 
   const deleteMutation = useAuthedMutation<
@@ -193,6 +193,7 @@ export default function GatewaysPage() {
     []
   );
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: sortedGateways,
     columns,

@@ -53,7 +53,7 @@ export default function BoardsPage() {
     refetchOnMount: "always",
   });
 
-  const boards = boardsQuery.data ?? [];
+  const boards = useMemo(() => boardsQuery.data ?? [], [boardsQuery.data]);
 
   const sortedBoards = useMemo(
     () => [...boards].sort((a, b) => a.name.localeCompare(b.name)),
@@ -141,6 +141,7 @@ export default function BoardsPage() {
     []
   );
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: sortedBoards,
     columns,

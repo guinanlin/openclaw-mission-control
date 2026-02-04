@@ -35,7 +35,6 @@ export default function OnboardingPage() {
   const { getToken, isSignedIn } = useAuth();
   const { user } = useUser();
 
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [name, setName] = useState("");
   const [timezone, setTimezone] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -87,7 +86,6 @@ export default function OnboardingPage() {
         throw new Error("Unable to load profile.");
       }
       const data = (await response.json()) as UserProfile;
-      setProfile(data);
       const fallbackName =
         user?.fullName ?? user?.firstName ?? user?.username ?? "";
       setName(data.preferred_name ?? data.name ?? fallbackName);
