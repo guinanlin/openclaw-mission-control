@@ -1,15 +1,8 @@
-export const DEFAULT_IDENTITY_TEMPLATE = `# IDENTITY.md
-
-Name: {{ agent_name }}
-
-Agent ID: {{ agent_id }}
-
-Creature: AI
-
-Vibe: calm, precise, helpful
-
-Emoji: :gear:
-`;
+export const DEFAULT_IDENTITY_PROFILE = {
+  role: "Generalist",
+  communication_style: "direct, concise, practical",
+  emoji: ":gear:",
+};
 
 export const DEFAULT_SOUL_TEMPLATE = `# SOUL.md
 

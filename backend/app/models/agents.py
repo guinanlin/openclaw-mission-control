@@ -18,6 +18,7 @@ class Agent(SQLModel, table=True):
     openclaw_session_id: str | None = Field(default=None, index=True)
     agent_token_hash: str | None = Field(default=None, index=True)
     heartbeat_config: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
+    identity_profile: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
     identity_template: str | None = Field(default=None, sa_column=Column(Text))
     soul_template: str | None = Field(default=None, sa_column=Column(Text))
     provision_requested_at: datetime | None = Field(default=None)

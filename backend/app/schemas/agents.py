@@ -12,6 +12,7 @@ class AgentBase(SQLModel):
     name: str
     status: str = "provisioning"
     heartbeat_config: dict[str, Any] | None = None
+    identity_profile: dict[str, Any] | None = None
     identity_template: str | None = None
     soul_template: str | None = None
 
@@ -25,6 +26,7 @@ class AgentUpdate(SQLModel):
     name: str | None = None
     status: str | None = None
     heartbeat_config: dict[str, Any] | None = None
+    identity_profile: dict[str, Any] | None = None
     identity_template: str | None = None
     soul_template: str | None = None
 
@@ -44,4 +46,3 @@ class AgentHeartbeat(SQLModel):
 class AgentHeartbeatCreate(AgentHeartbeat):
     name: str
     board_id: UUID | None = None
-

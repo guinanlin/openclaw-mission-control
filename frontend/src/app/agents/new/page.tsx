@@ -12,10 +12,17 @@ import { Input } from "@/components/ui/input";
 import SearchableSelect, {
   type SearchableSelectOption,
 } from "@/components/ui/searchable-select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { getApiBaseUrl } from "@/lib/api-base";
 import {
-  DEFAULT_IDENTITY_TEMPLATE,
+  DEFAULT_IDENTITY_PROFILE,
   DEFAULT_SOUL_TEMPLATE,
 } from "@/lib/agent-templates";
 
@@ -32,6 +39,25 @@ type Board = {
   slug: string;
 };
 
+type IdentityProfile = {
+  role: string;
+  communication_style: string;
+  emoji: string;
+};
+
+const EMOJI_OPTIONS = [
+  { value: ":gear:", label: "Gear", glyph: "⚙️" },
+  { value: ":sparkles:", label: "Sparkles", glyph: "✨" },
+  { value: ":rocket:", label: "Rocket", glyph: "🚀" },
+  { value: ":megaphone:", label: "Megaphone", glyph: "📣" },
+  { value: ":chart_with_upwards_trend:", label: "Growth", glyph: "📈" },
+  { value: ":bulb:", label: "Idea", glyph: "💡" },
+  { value: ":wrench:", label: "Builder", glyph: "🔧" },
+  { value: ":shield:", label: "Shield", glyph: "🛡️" },
+  { value: ":memo:", label: "Notes", glyph: "📝" },
+  { value: ":brain:", label: "Brain", glyph: "🧠" },
+];
+
 const HEARTBEAT_TARGET_OPTIONS: SearchableSelectOption[] = [
   { value: "none", label: "None (no outbound message)" },
   { value: "last", label: "Last channel" },
@@ -43,6 +69,18 @@ const getBoardOptions = (boards: Board[]): SearchableSelectOption[] =>
     label: board.name,
   }));
 
+const normalizeIdentityProfile = (
+  profile: IdentityProfile
+): IdentityProfile | null => {
+  const normalized: IdentityProfile = {
+    role: profile.role.trim(),
+    communication_style: profile.communication_style.trim(),
+    emoji: profile.emoji.trim(),
+  };
+  const hasValue = Object.values(normalized).some((value) => value.length > 0);
+  return hasValue ? normalized : null;
+};
+
 export default function NewAgentPage() {
   const router = useRouter();
   const { getToken, isSignedIn } = useAuth();
@@ -52,9 +90,9 @@ export default function NewAgentPage() {
   const [boardId, setBoardId] = useState<string>("");
   const [heartbeatEvery, setHeartbeatEvery] = useState("10m");
   const [heartbeatTarget, setHeartbeatTarget] = useState("none");
-  const [identityTemplate, setIdentityTemplate] = useState(
-    DEFAULT_IDENTITY_TEMPLATE
-  );
+  const [identityProfile, setIdentityProfile] = useState<IdentityProfile>({
+    ...DEFAULT_IDENTITY_PROFILE,
+  });
   const [soulTemplate, setSoulTemplate] = useState(DEFAULT_SOUL_TEMPLATE);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,7 +151,7 @@ export default function NewAgentPage() {
             every: heartbeatEvery.trim() || "10m",
             target: heartbeatTarget,
           },
-          identity_template: identityTemplate.trim() || null,
+          identity_profile: normalizeIdentityProfile(identityProfile),
           soul_template: soulTemplate.trim() || null,
         }),
       });
@@ -166,65 +204,111 @@ export default function NewAgentPage() {
             >
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  Agent identity
+                  Basic configuration
                 </p>
-                <div className="mt-4 grid gap-6 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-900">
-                      Agent name <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                      placeholder="e.g. Deploy bot"
-                      disabled={isLoading}
-                    />
+                <div className="mt-4 space-y-6">
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-900">
+                        Agent name <span className="text-red-500">*</span>
+                      </label>
+                      <Input
+                        value={name}
+                        onChange={(event) => setName(event.target.value)}
+                        placeholder="e.g. Deploy bot"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-900">
+                        Role
+                      </label>
+                      <Input
+                        value={identityProfile.role}
+                        onChange={(event) =>
+                          setIdentityProfile((current) => ({
+                            ...current,
+                            role: event.target.value,
+                          }))
+                        }
+                        placeholder="e.g. Founder, Social Media Manager"
+                        disabled={isLoading}
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-900">
-                      Board <span className="text-red-500">*</span>
-                    </label>
-                    <SearchableSelect
-                      ariaLabel="Select board"
-                      value={boardId}
-                      onValueChange={setBoardId}
-                      options={getBoardOptions(boards)}
-                      placeholder="Select board"
-                      searchPlaceholder="Search boards..."
-                      emptyMessage="No matching boards."
-                      triggerClassName="w-full h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                      contentClassName="rounded-xl border border-slate-200 shadow-lg"
-                      itemClassName="px-4 py-3 text-sm text-slate-700 data-[selected=true]:bg-slate-50 data-[selected=true]:text-slate-900"
-                      disabled={boards.length === 0}
-                    />
-                    {boards.length === 0 ? (
-                      <p className="text-xs text-slate-500">
-                        Create a board before adding agents.
-                      </p>
-                    ) : null}
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-900">
+                        Board <span className="text-red-500">*</span>
+                      </label>
+                      <SearchableSelect
+                        ariaLabel="Select board"
+                        value={boardId}
+                        onValueChange={setBoardId}
+                        options={getBoardOptions(boards)}
+                        placeholder="Select board"
+                        searchPlaceholder="Search boards..."
+                        emptyMessage="No matching boards."
+                        triggerClassName="w-full h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        contentClassName="rounded-xl border border-slate-200 shadow-lg"
+                        itemClassName="px-4 py-3 text-sm text-slate-700 data-[selected=true]:bg-slate-50 data-[selected=true]:text-slate-900"
+                        disabled={boards.length === 0}
+                      />
+                      {boards.length === 0 ? (
+                        <p className="text-xs text-slate-500">
+                          Create a board before adding agents.
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-900">
+                        Emoji
+                      </label>
+                      <Select
+                        value={identityProfile.emoji}
+                        onValueChange={(value) =>
+                          setIdentityProfile((current) => ({
+                            ...current,
+                            emoji: value,
+                          }))
+                        }
+                        disabled={isLoading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select emoji" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {EMOJI_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.glyph} {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  Agent persona
+                  Personality & behavior
                 </p>
-                <div className="mt-4 grid gap-6 md:grid-cols-2">
+                <div className="mt-4 space-y-6">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-900">
-                      Identity template
+                      Communication style
                     </label>
-                    <Textarea
-                      value={identityTemplate}
-                      onChange={(event) => setIdentityTemplate(event.target.value)}
-                      rows={8}
+                    <Input
+                      value={identityProfile.communication_style}
+                      onChange={(event) =>
+                        setIdentityProfile((current) => ({
+                          ...current,
+                          communication_style: event.target.value,
+                        }))
+                      }
                       disabled={isLoading}
                     />
-                    <p className="text-xs text-slate-500">
-                      Keep the agent_name and agent_id variables unchanged so
-                      the gateway can render them correctly.
-                    </p>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-900">
@@ -242,7 +326,7 @@ export default function NewAgentPage() {
 
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  Heartbeat settings
+                  Schedule & notifications
                 </p>
                 <div className="mt-4 grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">

@@ -17,6 +17,17 @@ from app.models.gateways import Gateway
 from app.models.users import User
 
 DEFAULT_HEARTBEAT_CONFIG = {"every": "10m", "target": "none"}
+DEFAULT_IDENTITY_PROFILE = {
+    "role": "Generalist",
+    "communication_style": "direct, concise, practical",
+    "emoji": ":gear:",
+}
+
+IDENTITY_PROFILE_FIELDS = {
+    "role": "identity_role",
+    "communication_style": "identity_communication_style",
+    "emoji": "identity_emoji",
+}
 
 DEFAULT_GATEWAY_FILES = frozenset(
     {
@@ -94,6 +105,26 @@ def _build_context(
     session_key = agent.openclaw_session_id or ""
     base_url = settings.base_url or "REPLACE_WITH_BASE_URL"
     main_session_key = gateway.main_session_key
+    identity_profile: dict[str, Any] = {}
+    if isinstance(agent.identity_profile, dict):
+        identity_profile = agent.identity_profile
+    normalized_identity: dict[str, str] = {}
+    for key, value in identity_profile.items():
+        if value is None:
+            continue
+        if isinstance(value, list):
+            parts = [str(item).strip() for item in value if str(item).strip()]
+            if not parts:
+                continue
+            normalized_identity[key] = ", ".join(parts)
+            continue
+        text = str(value).strip()
+        if text:
+            normalized_identity[key] = text
+    identity_context = {
+        context_key: normalized_identity.get(field, DEFAULT_IDENTITY_PROFILE[field])
+        for field, context_key in IDENTITY_PROFILE_FIELDS.items()
+    }
     return {
         "agent_name": agent.name,
         "agent_id": agent_id,
@@ -110,6 +141,7 @@ def _build_context(
         "user_timezone": (user.timezone or "") if user else "",
         "user_notes": (user.notes or "") if user else "",
         "user_context": (user.context or "") if user else "",
+        **identity_context,
     }
 
 

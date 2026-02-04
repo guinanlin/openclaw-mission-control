@@ -38,6 +38,27 @@ OFFLINE_AFTER = timedelta(minutes=10)
 AGENT_SESSION_PREFIX = "agent"
 
 
+def _normalize_identity_profile(
+    profile: dict[str, object] | None,
+) -> dict[str, str] | None:
+    if not profile:
+        return None
+    normalized: dict[str, str] = {}
+    for key, raw in profile.items():
+        if raw is None:
+            continue
+        if isinstance(raw, list):
+            parts = [str(item).strip() for item in raw if str(item).strip()]
+            if not parts:
+                continue
+            normalized[key] = ", ".join(parts)
+            continue
+        value = str(raw).strip()
+        if value:
+            normalized[key] = value
+    return normalized or None
+
+
 def _slugify(value: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return slug or uuid4().hex
@@ -176,6 +197,9 @@ async def create_agent(
         data["identity_template"] = None
     if data.get("soul_template") == "":
         data["soul_template"] = None
+    data["identity_profile"] = _normalize_identity_profile(
+        data.get("identity_profile")
+    )
     agent = Agent.model_validate(data)
     agent.status = "provisioning"
     raw_token = generate_agent_token()
@@ -267,6 +291,10 @@ async def update_agent(
         updates["identity_template"] = None
     if updates.get("soul_template") == "":
         updates["soul_template"] = None
+    if "identity_profile" in updates:
+        updates["identity_profile"] = _normalize_identity_profile(
+            updates.get("identity_profile")
+        )
     if not updates:
         return _with_computed_status(agent)
     if "board_id" in updates:
