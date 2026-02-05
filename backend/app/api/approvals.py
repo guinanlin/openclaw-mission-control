@@ -42,7 +42,9 @@ def _approval_updated_at(approval: Approval) -> datetime:
 
 
 def _serialize_approval(approval: Approval) -> dict[str, object]:
-    return ApprovalRead.model_validate(approval, from_attributes=True).model_dump()
+    return ApprovalRead.model_validate(
+        approval, from_attributes=True
+    ).model_dump(mode="json")
 
 
 def _fetch_approval_events(

@@ -670,4 +670,38 @@ def create_task_comment(
     session.add(event)
     session.commit()
     session.refresh(event)
+    if task.assigned_agent_id:
+        if (
+            actor.actor_type == "agent"
+            and actor.agent
+            and actor.agent.id == task.assigned_agent_id
+        ):
+            return event
+        agent = session.get(Agent, task.assigned_agent_id)
+        if agent and agent.openclaw_session_id:
+            board = session.get(Board, task.board_id) if task.board_id else None
+            config = _gateway_config(session, board) if board else None
+            if board and config:
+                snippet = payload.message.strip()
+                if len(snippet) > 500:
+                    snippet = f"{snippet[:497]}..."
+                message = (
+                    "NEW TASK COMMENT\n"
+                    f"Board: {board.name}\n"
+                    f"Task: {task.title}\n"
+                    f"Task ID: {task.id}\n\n"
+                    f"Comment:\n{snippet}\n\n"
+                    "Review and respond in the task thread."
+                )
+                try:
+                    asyncio.run(
+                        _send_agent_task_message(
+                            session_key=agent.openclaw_session_id,
+                            config=config,
+                            agent_name=agent.name,
+                            message=message,
+                        )
+                    )
+                except OpenClawGatewayError:
+                    pass
     return event
