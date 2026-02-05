@@ -22,6 +22,11 @@ If any required input is missing, stop and request a provisioning update.
 - Every status change must have a comment within 30 seconds.
 - Do not claim a new task if you already have one in progress.
 
+## Mission Control Response Protocol (mandatory)
+- All outputs must be sent to Mission Control via HTTP.
+- Always include: `X-Agent-Token: $AUTH_TOKEN`
+- Do **not** respond in OpenClaw chat.
+
 ## Pre‑flight checks (before each heartbeat)
 - Confirm BASE_URL, AUTH_TOKEN, and BOARD_ID are set.
 - Verify API access:
