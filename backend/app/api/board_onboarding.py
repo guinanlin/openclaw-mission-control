@@ -198,6 +198,7 @@ async def start_onboarding(
         "BOARD ONBOARDING REQUEST\n\n"
         f"Board Name: {board.name}\n"
         "You are the main agent. Ask the user 3-6 focused questions to clarify their goal.\n"
+        "Only respond in OpenClaw chat with onboarding JSON. All other outputs must be sent to Mission Control via API.\n"
         "Return questions as JSON: {\"question\": \"...\", \"options\": [...]}.\n"
         "When you have enough info, return JSON: {\"status\": \"complete\", \"board_type\": \"goal\"|\"general\", "
         "\"objective\": \"...\", \"success_metrics\": {...}, \"target_date\": \"YYYY-MM-DD\"}."
