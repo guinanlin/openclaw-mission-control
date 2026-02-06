@@ -25,16 +25,19 @@ from app.api.deps import (
 )
 from app.core.auth import AuthContext
 from app.core.time import utcnow
+from app.db.pagination import paginate
 from app.db.session import async_session_maker, get_session
 from app.integrations.openclaw_gateway import GatewayConfig as GatewayClientConfig
 from app.integrations.openclaw_gateway import OpenClawGatewayError, ensure_session, send_message
 from app.models.activity_events import ActivityEvent
 from app.models.agents import Agent
+from app.models.approvals import Approval
 from app.models.boards import Board
 from app.models.gateways import Gateway
 from app.models.task_fingerprints import TaskFingerprint
 from app.models.tasks import Task
 from app.schemas.common import OkResponse
+from app.schemas.pagination import DefaultLimitOffsetPage
 from app.schemas.tasks import TaskCommentCreate, TaskCommentRead, TaskCreate, TaskRead, TaskUpdate
 from app.services.activity_log import record_activity
 
@@ -410,16 +413,18 @@ async def stream_tasks(
     return EventSourceResponse(event_generator(), ping=15)
 
 
-@router.get("", response_model=list[TaskRead])
+@router.get("", response_model=DefaultLimitOffsetPage[TaskRead])
 async def list_tasks(
     status_filter: str | None = Query(default=None, alias="status"),
     assigned_agent_id: UUID | None = None,
     unassigned: bool | None = None,
-    limit: int | None = Query(default=None, ge=1, le=200),
     board: Board = Depends(get_board_or_404),
     session: AsyncSession = Depends(get_session),
     actor: ActorContext = Depends(require_admin_or_agent),
-) -> list[Task]:
+) -> DefaultLimitOffsetPage[TaskRead]:
+    if actor.actor_type == "agent" and actor.agent:
+        if actor.agent.board_id and actor.agent.board_id != board.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
     statement = select(Task).where(Task.board_id == board.id)
     if status_filter:
         statuses = [s.strip() for s in status_filter.split(",") if s.strip()]
@@ -434,9 +439,8 @@ async def list_tasks(
         statement = statement.where(col(Task.assigned_agent_id) == assigned_agent_id)
     if unassigned:
         statement = statement.where(col(Task.assigned_agent_id).is_(None))
-    if limit is not None:
-        statement = statement.limit(limit)
-    return list(await session.exec(statement))
+    statement = statement.order_by(col(Task.created_at).desc())
+    return await paginate(session, statement)
 
 
 @router.post("", response_model=TaskRead)
@@ -661,17 +665,18 @@ async def delete_task(
 ) -> OkResponse:
     await session.execute(delete(ActivityEvent).where(col(ActivityEvent.task_id) == task.id))
     await session.execute(delete(TaskFingerprint).where(col(TaskFingerprint.task_id) == task.id))
+    await session.execute(delete(Approval).where(col(Approval.task_id) == task.id))
     await session.delete(task)
     await session.commit()
     return OkResponse()
 
 
-@router.get("/{task_id}/comments", response_model=list[TaskCommentRead])
+@router.get("/{task_id}/comments", response_model=DefaultLimitOffsetPage[TaskCommentRead])
 async def list_task_comments(
     task: Task = Depends(get_task_or_404),
     session: AsyncSession = Depends(get_session),
     actor: ActorContext = Depends(require_admin_or_agent),
-) -> list[ActivityEvent]:
+) -> DefaultLimitOffsetPage[TaskCommentRead]:
     if actor.actor_type == "agent" and actor.agent:
         if actor.agent.board_id and task.board_id and actor.agent.board_id != task.board_id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
@@ -681,7 +686,7 @@ async def list_task_comments(
         .where(col(ActivityEvent.event_type) == "task.comment")
         .order_by(asc(col(ActivityEvent.created_at)))
     )
-    return list(await session.exec(statement))
+    return await paginate(session, statement)
 
 
 @router.post("/{task_id}/comments", response_model=TaskCommentRead)

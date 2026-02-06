@@ -34,9 +34,17 @@ import type {
   BoardOnboardingRead,
   BoardRead,
   HTTPValidationError,
+  LimitOffsetPageTypeVarCustomizedAgentRead,
+  LimitOffsetPageTypeVarCustomizedApprovalRead,
+  LimitOffsetPageTypeVarCustomizedBoardMemoryRead,
+  LimitOffsetPageTypeVarCustomizedBoardRead,
+  LimitOffsetPageTypeVarCustomizedTaskCommentRead,
+  LimitOffsetPageTypeVarCustomizedTaskRead,
   ListAgentsApiV1AgentAgentsGetParams,
   ListApprovalsApiV1AgentBoardsBoardIdApprovalsGetParams,
   ListBoardMemoryApiV1AgentBoardsBoardIdMemoryGetParams,
+  ListBoardsApiV1AgentBoardsGetParams,
+  ListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetParams,
   ListTasksApiV1AgentBoardsBoardIdTasksGetParams,
   OkResponse,
   TaskCommentCreate,
@@ -54,7 +62,7 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
  * @summary List Boards
  */
 export type listBoardsApiV1AgentBoardsGetResponse200 = {
-  data: BoardRead[];
+  data: LimitOffsetPageTypeVarCustomizedBoardRead;
   status: 200;
 };
 
@@ -76,15 +84,30 @@ export type listBoardsApiV1AgentBoardsGetResponse =
   | listBoardsApiV1AgentBoardsGetResponseSuccess
   | listBoardsApiV1AgentBoardsGetResponseError;
 
-export const getListBoardsApiV1AgentBoardsGetUrl = () => {
-  return `/api/v1/agent/boards`;
+export const getListBoardsApiV1AgentBoardsGetUrl = (
+  params?: ListBoardsApiV1AgentBoardsGetParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/agent/boards?${stringifiedParams}`
+    : `/api/v1/agent/boards`;
 };
 
 export const listBoardsApiV1AgentBoardsGet = async (
+  params?: ListBoardsApiV1AgentBoardsGetParams,
   options?: RequestInit,
 ): Promise<listBoardsApiV1AgentBoardsGetResponse> => {
   return customFetch<listBoardsApiV1AgentBoardsGetResponse>(
-    getListBoardsApiV1AgentBoardsGetUrl(),
+    getListBoardsApiV1AgentBoardsGetUrl(params),
     {
       ...options,
       method: "GET",
@@ -92,32 +115,37 @@ export const listBoardsApiV1AgentBoardsGet = async (
   );
 };
 
-export const getListBoardsApiV1AgentBoardsGetQueryKey = () => {
-  return [`/api/v1/agent/boards`] as const;
+export const getListBoardsApiV1AgentBoardsGetQueryKey = (
+  params?: ListBoardsApiV1AgentBoardsGetParams,
+) => {
+  return [`/api/v1/agent/boards`, ...(params ? [params] : [])] as const;
 };
 
 export const getListBoardsApiV1AgentBoardsGetQueryOptions = <
   TData = Awaited<ReturnType<typeof listBoardsApiV1AgentBoardsGet>>,
   TError = HTTPValidationError,
->(options?: {
-  query?: Partial<
-    UseQueryOptions<
-      Awaited<ReturnType<typeof listBoardsApiV1AgentBoardsGet>>,
-      TError,
-      TData
-    >
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
+>(
+  params?: ListBoardsApiV1AgentBoardsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listBoardsApiV1AgentBoardsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey =
-    queryOptions?.queryKey ?? getListBoardsApiV1AgentBoardsGetQueryKey();
+    queryOptions?.queryKey ?? getListBoardsApiV1AgentBoardsGetQueryKey(params);
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof listBoardsApiV1AgentBoardsGet>>
   > = ({ signal }) =>
-    listBoardsApiV1AgentBoardsGet({ signal, ...requestOptions });
+    listBoardsApiV1AgentBoardsGet(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listBoardsApiV1AgentBoardsGet>>,
@@ -135,6 +163,7 @@ export function useListBoardsApiV1AgentBoardsGet<
   TData = Awaited<ReturnType<typeof listBoardsApiV1AgentBoardsGet>>,
   TError = HTTPValidationError,
 >(
+  params: undefined | ListBoardsApiV1AgentBoardsGetParams,
   options: {
     query: Partial<
       UseQueryOptions<
@@ -161,6 +190,7 @@ export function useListBoardsApiV1AgentBoardsGet<
   TData = Awaited<ReturnType<typeof listBoardsApiV1AgentBoardsGet>>,
   TError = HTTPValidationError,
 >(
+  params?: ListBoardsApiV1AgentBoardsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -187,6 +217,7 @@ export function useListBoardsApiV1AgentBoardsGet<
   TData = Awaited<ReturnType<typeof listBoardsApiV1AgentBoardsGet>>,
   TError = HTTPValidationError,
 >(
+  params?: ListBoardsApiV1AgentBoardsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -209,6 +240,7 @@ export function useListBoardsApiV1AgentBoardsGet<
   TData = Awaited<ReturnType<typeof listBoardsApiV1AgentBoardsGet>>,
   TError = HTTPValidationError,
 >(
+  params?: ListBoardsApiV1AgentBoardsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -223,7 +255,10 @@ export function useListBoardsApiV1AgentBoardsGet<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 } {
-  const queryOptions = getListBoardsApiV1AgentBoardsGetQueryOptions(options);
+  const queryOptions = getListBoardsApiV1AgentBoardsGetQueryOptions(
+    params,
+    options,
+  );
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,
@@ -439,7 +474,7 @@ export function useGetBoardApiV1AgentBoardsBoardIdGet<
  * @summary List Agents
  */
 export type listAgentsApiV1AgentAgentsGetResponse200 = {
-  data: AgentRead[];
+  data: LimitOffsetPageTypeVarCustomizedAgentRead;
   status: 200;
 };
 
@@ -766,7 +801,7 @@ export const useCreateAgentApiV1AgentAgentsPost = <
  * @summary List Tasks
  */
 export type listTasksApiV1AgentBoardsBoardIdTasksGetResponse200 = {
-  data: TaskRead[];
+  data: LimitOffsetPageTypeVarCustomizedTaskRead;
   status: 200;
 };
 
@@ -1265,7 +1300,7 @@ export const useUpdateTaskApiV1AgentBoardsBoardIdTasksTaskIdPatch = <
  */
 export type listTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetResponse200 =
   {
-    data: TaskCommentRead[];
+    data: LimitOffsetPageTypeVarCustomizedTaskCommentRead;
     status: 200;
   };
 
@@ -1290,20 +1325,41 @@ export type listTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetRespons
     | listTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetResponseError;
 
 export const getListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetUrl =
-  (boardId: string, taskId: string) => {
-    return `/api/v1/agent/boards/${boardId}/tasks/${taskId}/comments`;
+  (
+    boardId: string,
+    taskId: string,
+    params?: ListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetParams,
+  ) => {
+    const normalizedParams = new URLSearchParams();
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (value !== undefined) {
+        normalizedParams.append(
+          key,
+          value === null ? "null" : value.toString(),
+        );
+      }
+    });
+
+    const stringifiedParams = normalizedParams.toString();
+
+    return stringifiedParams.length > 0
+      ? `/api/v1/agent/boards/${boardId}/tasks/${taskId}/comments?${stringifiedParams}`
+      : `/api/v1/agent/boards/${boardId}/tasks/${taskId}/comments`;
   };
 
 export const listTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGet =
   async (
     boardId: string,
     taskId: string,
+    params?: ListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetParams,
     options?: RequestInit,
   ): Promise<listTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetResponse> => {
     return customFetch<listTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetResponse>(
       getListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetUrl(
         boardId,
         taskId,
+        params,
       ),
       {
         ...options,
@@ -1313,9 +1369,14 @@ export const listTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGet =
   };
 
 export const getListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetQueryKey =
-  (boardId: string, taskId: string) => {
+  (
+    boardId: string,
+    taskId: string,
+    params?: ListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetParams,
+  ) => {
     return [
       `/api/v1/agent/boards/${boardId}/tasks/${taskId}/comments`,
+      ...(params ? [params] : []),
     ] as const;
   };
 
@@ -1330,6 +1391,7 @@ export const getListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetQue
   >(
     boardId: string,
     taskId: string,
+    params?: ListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetParams,
     options?: {
       query?: Partial<
         UseQueryOptions<
@@ -1352,6 +1414,7 @@ export const getListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetQue
       getListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetQueryKey(
         boardId,
         taskId,
+        params,
       );
 
     const queryFn: QueryFunction<
@@ -1364,6 +1427,7 @@ export const getListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetQue
       listTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGet(
         boardId,
         taskId,
+        params,
         { signal, ...requestOptions },
       );
 
@@ -1404,6 +1468,9 @@ export function useListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGet
 >(
   boardId: string,
   taskId: string,
+  params:
+    | undefined
+    | ListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetParams,
   options: {
     query: Partial<
       UseQueryOptions<
@@ -1448,6 +1515,7 @@ export function useListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGet
 >(
   boardId: string,
   taskId: string,
+  params?: ListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -1492,6 +1560,7 @@ export function useListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGet
 >(
   boardId: string,
   taskId: string,
+  params?: ListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -1524,6 +1593,7 @@ export function useListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGet
 >(
   boardId: string,
   taskId: string,
+  params?: ListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -1546,6 +1616,7 @@ export function useListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGet
     getListTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetQueryOptions(
       boardId,
       taskId,
+      params,
       options,
     );
 
@@ -1720,7 +1791,7 @@ export const useCreateTaskCommentApiV1AgentBoardsBoardIdTasksTaskIdCommentsPost 
  * @summary List Board Memory
  */
 export type listBoardMemoryApiV1AgentBoardsBoardIdMemoryGetResponse200 = {
-  data: BoardMemoryRead[];
+  data: LimitOffsetPageTypeVarCustomizedBoardMemoryRead;
   status: 200;
 };
 
@@ -2121,7 +2192,7 @@ export const useCreateBoardMemoryApiV1AgentBoardsBoardIdMemoryPost = <
  * @summary List Approvals
  */
 export type listApprovalsApiV1AgentBoardsBoardIdApprovalsGetResponse200 = {
-  data: ApprovalRead[];
+  data: LimitOffsetPageTypeVarCustomizedApprovalRead;
   status: 200;
 };
 

@@ -13,6 +13,7 @@ ApprovalStatus = Literal["pending", "approved", "rejected"]
 
 class ApprovalBase(SQLModel):
     action_type: str
+    task_id: UUID | None = None
     payload: dict[str, object] | None = None
     confidence: int
     rubric_scores: dict[str, int] | None = None

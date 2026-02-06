@@ -16,11 +16,6 @@ import {
   type listAgentsApiV1AgentsGetResponse,
   useListAgentsApiV1AgentsGet,
 } from "@/api/generated/agents/agents";
-import {
-  type listBoardsApiV1BoardsGetResponse,
-  useListBoardsApiV1BoardsGet,
-} from "@/api/generated/boards/boards";
-import type { AgentRead } from "@/api/generated/model";
 import { DashboardSidebar } from "@/components/organisms/DashboardSidebar";
 import { DashboardShell } from "@/components/templates/DashboardShell";
 import { Button } from "@/components/ui/button";
@@ -65,22 +60,12 @@ export default function GatewayDetailPage() {
   const gateway =
     gatewayQuery.data?.status === 200 ? gatewayQuery.data.data : null;
 
-  const boardsQuery = useListBoardsApiV1BoardsGet<
-    listBoardsApiV1BoardsGetResponse,
-    ApiError
-  >({
-    query: {
-      enabled: Boolean(isSignedIn),
-      refetchInterval: 30_000,
-    },
-  });
-
   const agentsQuery = useListAgentsApiV1AgentsGet<
     listAgentsApiV1AgentsGetResponse,
     ApiError
-  >({
+  >(gatewayId ? { gateway_id: gatewayId } : undefined, {
     query: {
-      enabled: Boolean(isSignedIn),
+      enabled: Boolean(isSignedIn && gatewayId),
       refetchInterval: 15_000,
     },
   });
@@ -103,22 +88,11 @@ export default function GatewayDetailPage() {
     },
   });
 
-  const agents = useMemo(() => {
-    const allAgents = agentsQuery.data?.data ?? [];
-    const boards = boardsQuery.data?.status === 200 ? boardsQuery.data.data : [];
-    if (!gatewayId) {
-      return allAgents;
-    }
-    const boardIds = new Set(
-      boards.filter((board) => board.gateway_id === gatewayId).map((board) => board.id),
-    );
-    if (boardIds.size === 0) {
-      return [];
-    }
-    return allAgents.filter(
-      (agent): agent is AgentRead => Boolean(agent.board_id && boardIds.has(agent.board_id)),
-    );
-  }, [agentsQuery.data, boardsQuery.data, gatewayId]);
+  const agents = useMemo(
+    () =>
+      agentsQuery.data?.status === 200 ? agentsQuery.data.data.items ?? [] : [],
+    [agentsQuery.data],
+  );
 
   const status =
     statusQuery.data?.status === 200 ? statusQuery.data.data : null;

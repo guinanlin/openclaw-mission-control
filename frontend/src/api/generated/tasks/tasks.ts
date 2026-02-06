@@ -22,6 +22,9 @@ import type {
 
 import type {
   HTTPValidationError,
+  LimitOffsetPageTypeVarCustomizedTaskCommentRead,
+  LimitOffsetPageTypeVarCustomizedTaskRead,
+  ListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetParams,
   ListTasksApiV1BoardsBoardIdTasksGetParams,
   OkResponse,
   StreamTasksApiV1BoardsBoardIdTasksStreamGetParams,
@@ -292,7 +295,7 @@ export function useStreamTasksApiV1BoardsBoardIdTasksStreamGet<
  * @summary List Tasks
  */
 export type listTasksApiV1BoardsBoardIdTasksGetResponse200 = {
-  data: TaskRead[];
+  data: LimitOffsetPageTypeVarCustomizedTaskRead;
   status: 200;
 };
 
@@ -900,7 +903,7 @@ export const useDeleteTaskApiV1BoardsBoardIdTasksTaskIdDelete = <
  */
 export type listTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetResponse200 =
   {
-    data: TaskCommentRead[];
+    data: LimitOffsetPageTypeVarCustomizedTaskCommentRead;
     status: 200;
   };
 
@@ -926,19 +929,34 @@ export type listTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetResponse =
 export const getListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetUrl = (
   boardId: string,
   taskId: string,
+  params?: ListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetParams,
 ) => {
-  return `/api/v1/boards/${boardId}/tasks/${taskId}/comments`;
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/boards/${boardId}/tasks/${taskId}/comments?${stringifiedParams}`
+    : `/api/v1/boards/${boardId}/tasks/${taskId}/comments`;
 };
 
 export const listTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGet = async (
   boardId: string,
   taskId: string,
+  params?: ListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetParams,
   options?: RequestInit,
 ): Promise<listTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetResponse> => {
   return customFetch<listTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetResponse>(
     getListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetUrl(
       boardId,
       taskId,
+      params,
     ),
     {
       ...options,
@@ -948,8 +966,15 @@ export const listTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGet = async (
 };
 
 export const getListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetQueryKey =
-  (boardId: string, taskId: string) => {
-    return [`/api/v1/boards/${boardId}/tasks/${taskId}/comments`] as const;
+  (
+    boardId: string,
+    taskId: string,
+    params?: ListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetParams,
+  ) => {
+    return [
+      `/api/v1/boards/${boardId}/tasks/${taskId}/comments`,
+      ...(params ? [params] : []),
+    ] as const;
   };
 
 export const getListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetQueryOptions =
@@ -963,6 +988,7 @@ export const getListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetQueryOpt
   >(
     boardId: string,
     taskId: string,
+    params?: ListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetParams,
     options?: {
       query?: Partial<
         UseQueryOptions<
@@ -985,6 +1011,7 @@ export const getListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetQueryOpt
       getListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetQueryKey(
         boardId,
         taskId,
+        params,
       );
 
     const queryFn: QueryFunction<
@@ -997,6 +1024,7 @@ export const getListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetQueryOpt
       listTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGet(
         boardId,
         taskId,
+        params,
         { signal, ...requestOptions },
       );
 
@@ -1035,6 +1063,9 @@ export function useListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGet<
 >(
   boardId: string,
   taskId: string,
+  params:
+    | undefined
+    | ListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetParams,
   options: {
     query: Partial<
       UseQueryOptions<
@@ -1077,6 +1108,7 @@ export function useListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGet<
 >(
   boardId: string,
   taskId: string,
+  params?: ListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -1119,6 +1151,7 @@ export function useListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGet<
 >(
   boardId: string,
   taskId: string,
+  params?: ListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -1149,6 +1182,7 @@ export function useListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGet<
 >(
   boardId: string,
   taskId: string,
+  params?: ListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -1171,6 +1205,7 @@ export function useListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGet<
     getListTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetQueryOptions(
       boardId,
       taskId,
+      params,
       options,
     );
 

@@ -23,8 +23,11 @@ import type {
 import type {
   BoardCreate,
   BoardRead,
+  BoardSnapshot,
   BoardUpdate,
   HTTPValidationError,
+  LimitOffsetPageTypeVarCustomizedBoardRead,
+  ListBoardsApiV1BoardsGetParams,
   OkResponse,
 } from ".././model";
 
@@ -36,7 +39,7 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
  * @summary List Boards
  */
 export type listBoardsApiV1BoardsGetResponse200 = {
-  data: BoardRead[];
+  data: LimitOffsetPageTypeVarCustomizedBoardRead;
   status: 200;
 };
 
@@ -58,15 +61,30 @@ export type listBoardsApiV1BoardsGetResponse =
   | listBoardsApiV1BoardsGetResponseSuccess
   | listBoardsApiV1BoardsGetResponseError;
 
-export const getListBoardsApiV1BoardsGetUrl = () => {
-  return `/api/v1/boards`;
+export const getListBoardsApiV1BoardsGetUrl = (
+  params?: ListBoardsApiV1BoardsGetParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/boards?${stringifiedParams}`
+    : `/api/v1/boards`;
 };
 
 export const listBoardsApiV1BoardsGet = async (
+  params?: ListBoardsApiV1BoardsGetParams,
   options?: RequestInit,
 ): Promise<listBoardsApiV1BoardsGetResponse> => {
   return customFetch<listBoardsApiV1BoardsGetResponse>(
-    getListBoardsApiV1BoardsGetUrl(),
+    getListBoardsApiV1BoardsGetUrl(params),
     {
       ...options,
       method: "GET",
@@ -74,31 +92,37 @@ export const listBoardsApiV1BoardsGet = async (
   );
 };
 
-export const getListBoardsApiV1BoardsGetQueryKey = () => {
-  return [`/api/v1/boards`] as const;
+export const getListBoardsApiV1BoardsGetQueryKey = (
+  params?: ListBoardsApiV1BoardsGetParams,
+) => {
+  return [`/api/v1/boards`, ...(params ? [params] : [])] as const;
 };
 
 export const getListBoardsApiV1BoardsGetQueryOptions = <
   TData = Awaited<ReturnType<typeof listBoardsApiV1BoardsGet>>,
   TError = HTTPValidationError,
->(options?: {
-  query?: Partial<
-    UseQueryOptions<
-      Awaited<ReturnType<typeof listBoardsApiV1BoardsGet>>,
-      TError,
-      TData
-    >
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
+>(
+  params?: ListBoardsApiV1BoardsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listBoardsApiV1BoardsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey =
-    queryOptions?.queryKey ?? getListBoardsApiV1BoardsGetQueryKey();
+    queryOptions?.queryKey ?? getListBoardsApiV1BoardsGetQueryKey(params);
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof listBoardsApiV1BoardsGet>>
-  > = ({ signal }) => listBoardsApiV1BoardsGet({ signal, ...requestOptions });
+  > = ({ signal }) =>
+    listBoardsApiV1BoardsGet(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listBoardsApiV1BoardsGet>>,
@@ -116,6 +140,7 @@ export function useListBoardsApiV1BoardsGet<
   TData = Awaited<ReturnType<typeof listBoardsApiV1BoardsGet>>,
   TError = HTTPValidationError,
 >(
+  params: undefined | ListBoardsApiV1BoardsGetParams,
   options: {
     query: Partial<
       UseQueryOptions<
@@ -142,6 +167,7 @@ export function useListBoardsApiV1BoardsGet<
   TData = Awaited<ReturnType<typeof listBoardsApiV1BoardsGet>>,
   TError = HTTPValidationError,
 >(
+  params?: ListBoardsApiV1BoardsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -168,6 +194,7 @@ export function useListBoardsApiV1BoardsGet<
   TData = Awaited<ReturnType<typeof listBoardsApiV1BoardsGet>>,
   TError = HTTPValidationError,
 >(
+  params?: ListBoardsApiV1BoardsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -190,6 +217,7 @@ export function useListBoardsApiV1BoardsGet<
   TData = Awaited<ReturnType<typeof listBoardsApiV1BoardsGet>>,
   TError = HTTPValidationError,
 >(
+  params?: ListBoardsApiV1BoardsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -204,7 +232,7 @@ export function useListBoardsApiV1BoardsGet<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 } {
-  const queryOptions = getListBoardsApiV1BoardsGetQueryOptions(options);
+  const queryOptions = getListBoardsApiV1BoardsGetQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,
@@ -765,3 +793,240 @@ export const useDeleteBoardApiV1BoardsBoardIdDelete = <
     queryClient,
   );
 };
+/**
+ * @summary Get Board Snapshot
+ */
+export type getBoardSnapshotApiV1BoardsBoardIdSnapshotGetResponse200 = {
+  data: BoardSnapshot;
+  status: 200;
+};
+
+export type getBoardSnapshotApiV1BoardsBoardIdSnapshotGetResponse422 = {
+  data: HTTPValidationError;
+  status: 422;
+};
+
+export type getBoardSnapshotApiV1BoardsBoardIdSnapshotGetResponseSuccess =
+  getBoardSnapshotApiV1BoardsBoardIdSnapshotGetResponse200 & {
+    headers: Headers;
+  };
+export type getBoardSnapshotApiV1BoardsBoardIdSnapshotGetResponseError =
+  getBoardSnapshotApiV1BoardsBoardIdSnapshotGetResponse422 & {
+    headers: Headers;
+  };
+
+export type getBoardSnapshotApiV1BoardsBoardIdSnapshotGetResponse =
+  | getBoardSnapshotApiV1BoardsBoardIdSnapshotGetResponseSuccess
+  | getBoardSnapshotApiV1BoardsBoardIdSnapshotGetResponseError;
+
+export const getGetBoardSnapshotApiV1BoardsBoardIdSnapshotGetUrl = (
+  boardId: string,
+) => {
+  return `/api/v1/boards/${boardId}/snapshot`;
+};
+
+export const getBoardSnapshotApiV1BoardsBoardIdSnapshotGet = async (
+  boardId: string,
+  options?: RequestInit,
+): Promise<getBoardSnapshotApiV1BoardsBoardIdSnapshotGetResponse> => {
+  return customFetch<getBoardSnapshotApiV1BoardsBoardIdSnapshotGetResponse>(
+    getGetBoardSnapshotApiV1BoardsBoardIdSnapshotGetUrl(boardId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetBoardSnapshotApiV1BoardsBoardIdSnapshotGetQueryKey = (
+  boardId: string,
+) => {
+  return [`/api/v1/boards/${boardId}/snapshot`] as const;
+};
+
+export const getGetBoardSnapshotApiV1BoardsBoardIdSnapshotGetQueryOptions = <
+  TData = Awaited<
+    ReturnType<typeof getBoardSnapshotApiV1BoardsBoardIdSnapshotGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  boardId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof getBoardSnapshotApiV1BoardsBoardIdSnapshotGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetBoardSnapshotApiV1BoardsBoardIdSnapshotGetQueryKey(boardId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getBoardSnapshotApiV1BoardsBoardIdSnapshotGet>>
+  > = ({ signal }) =>
+    getBoardSnapshotApiV1BoardsBoardIdSnapshotGet(boardId, {
+      signal,
+      ...requestOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!boardId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBoardSnapshotApiV1BoardsBoardIdSnapshotGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetBoardSnapshotApiV1BoardsBoardIdSnapshotGetQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof getBoardSnapshotApiV1BoardsBoardIdSnapshotGet>>
+  >;
+export type GetBoardSnapshotApiV1BoardsBoardIdSnapshotGetQueryError =
+  HTTPValidationError;
+
+export function useGetBoardSnapshotApiV1BoardsBoardIdSnapshotGet<
+  TData = Awaited<
+    ReturnType<typeof getBoardSnapshotApiV1BoardsBoardIdSnapshotGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  boardId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof getBoardSnapshotApiV1BoardsBoardIdSnapshotGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof getBoardSnapshotApiV1BoardsBoardIdSnapshotGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof getBoardSnapshotApiV1BoardsBoardIdSnapshotGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetBoardSnapshotApiV1BoardsBoardIdSnapshotGet<
+  TData = Awaited<
+    ReturnType<typeof getBoardSnapshotApiV1BoardsBoardIdSnapshotGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  boardId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof getBoardSnapshotApiV1BoardsBoardIdSnapshotGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof getBoardSnapshotApiV1BoardsBoardIdSnapshotGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof getBoardSnapshotApiV1BoardsBoardIdSnapshotGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetBoardSnapshotApiV1BoardsBoardIdSnapshotGet<
+  TData = Awaited<
+    ReturnType<typeof getBoardSnapshotApiV1BoardsBoardIdSnapshotGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  boardId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof getBoardSnapshotApiV1BoardsBoardIdSnapshotGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Get Board Snapshot
+ */
+
+export function useGetBoardSnapshotApiV1BoardsBoardIdSnapshotGet<
+  TData = Awaited<
+    ReturnType<typeof getBoardSnapshotApiV1BoardsBoardIdSnapshotGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  boardId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof getBoardSnapshotApiV1BoardsBoardIdSnapshotGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getGetBoardSnapshotApiV1BoardsBoardIdSnapshotGetQueryOptions(
+      boardId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}

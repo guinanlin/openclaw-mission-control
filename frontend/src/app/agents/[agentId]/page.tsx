@@ -106,7 +106,7 @@ export default function AgentDetailPage() {
   const boardsQuery = useListBoardsApiV1BoardsGet<
     listBoardsApiV1BoardsGetResponse,
     ApiError
-  >({
+  >(undefined, {
     query: {
       enabled: Boolean(isSignedIn),
       refetchInterval: 60_000,
@@ -118,9 +118,11 @@ export default function AgentDetailPage() {
   const agent: AgentRead | null =
     agentQuery.data?.status === 200 ? agentQuery.data.data : null;
   const events: ActivityEventRead[] =
-    activityQuery.data?.status === 200 ? activityQuery.data.data : [];
+    activityQuery.data?.status === 200
+      ? activityQuery.data.data.items ?? []
+      : [];
   const boards: BoardRead[] =
-    boardsQuery.data?.status === 200 ? boardsQuery.data.data : [];
+    boardsQuery.data?.status === 200 ? boardsQuery.data.data.items ?? [] : [];
 
   const agentEvents = useMemo(() => {
     if (!agent) return [];

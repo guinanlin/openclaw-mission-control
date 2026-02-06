@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.agent_tokens import generate_agent_token, hash_agent_token
 from app.core.auth import AuthContext, get_auth_context
 from app.core.time import utcnow
+from app.db.pagination import paginate
 from app.db.session import get_session
 from app.integrations.openclaw_gateway import GatewayConfig as GatewayClientConfig
 from app.integrations.openclaw_gateway import OpenClawGatewayError, ensure_session, send_message
@@ -17,6 +17,7 @@ from app.models.agents import Agent
 from app.models.gateways import Gateway
 from app.schemas.common import OkResponse
 from app.schemas.gateways import GatewayCreate, GatewayRead, GatewayUpdate
+from app.schemas.pagination import DefaultLimitOffsetPage
 from app.services.agent_provisioning import DEFAULT_HEARTBEAT_CONFIG, provision_main_agent
 
 router = APIRouter(prefix="/gateways", tags=["gateways"])
@@ -362,12 +363,13 @@ async def _send_skyll_disable_message(gateway: Gateway) -> None:
     )
 
 
-@router.get("", response_model=list[GatewayRead])
+@router.get("", response_model=DefaultLimitOffsetPage[GatewayRead])
 async def list_gateways(
     session: AsyncSession = Depends(get_session),
     auth: AuthContext = Depends(get_auth_context),
-) -> list[Gateway]:
-    return list(await session.exec(select(Gateway)))
+) -> DefaultLimitOffsetPage[GatewayRead]:
+    statement = select(Gateway).order_by(col(Gateway.created_at).desc())
+    return await paginate(session, statement)
 
 
 @router.post("", response_model=GatewayRead)

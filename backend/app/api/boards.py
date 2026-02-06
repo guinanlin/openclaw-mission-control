@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import re
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import delete
+from sqlalchemy import func
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -12,6 +13,7 @@ from app.api.deps import ActorContext, get_board_or_404, require_admin_auth, req
 from app.core.auth import AuthContext
 from app.core.time import utcnow
 from app.db import crud
+from app.db.pagination import paginate
 from app.db.session import get_session
 from app.integrations.openclaw_gateway import GatewayConfig as GatewayClientConfig
 from app.integrations.openclaw_gateway import (
@@ -31,6 +33,9 @@ from app.models.task_fingerprints import TaskFingerprint
 from app.models.tasks import Task
 from app.schemas.common import OkResponse
 from app.schemas.boards import BoardCreate, BoardRead, BoardUpdate
+from app.schemas.pagination import DefaultLimitOffsetPage
+from app.schemas.view_models import BoardSnapshot
+from app.services.board_snapshot import build_board_snapshot
 
 router = APIRouter(prefix="/boards", tags=["boards"])
 
@@ -149,12 +154,17 @@ async def _cleanup_agent_on_gateway(
     )
 
 
-@router.get("", response_model=list[BoardRead])
+@router.get("", response_model=DefaultLimitOffsetPage[BoardRead])
 async def list_boards(
+    gateway_id: UUID | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
     actor: ActorContext = Depends(require_admin_or_agent),
-) -> list[Board]:
-    return list(await session.exec(select(Board)))
+) -> DefaultLimitOffsetPage[BoardRead]:
+    statement = select(Board)
+    if gateway_id is not None:
+        statement = statement.where(col(Board.gateway_id) == gateway_id)
+    statement = statement.order_by(func.lower(col(Board.name)).asc(), col(Board.created_at).desc())
+    return await paginate(session, statement)
 
 
 @router.post("", response_model=BoardRead)
@@ -173,6 +183,18 @@ def get_board(
     actor: ActorContext = Depends(require_admin_or_agent),
 ) -> Board:
     return board
+
+
+@router.get("/{board_id}/snapshot", response_model=BoardSnapshot)
+async def get_board_snapshot(
+    board: Board = Depends(get_board_or_404),
+    session: AsyncSession = Depends(get_session),
+    actor: ActorContext = Depends(require_admin_or_agent),
+) -> BoardSnapshot:
+    if actor.actor_type == "agent" and actor.agent:
+        if actor.agent.board_id and actor.agent.board_id != board.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+    return await build_board_snapshot(session, board)
 
 
 @router.patch("/{board_id}", response_model=BoardRead)

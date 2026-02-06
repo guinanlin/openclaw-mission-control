@@ -161,6 +161,7 @@ const payloadValue = (payload: Approval["payload"], key: string) => {
 const approvalSummary = (approval: Approval) => {
   const payload = approval.payload ?? {};
   const taskId =
+    approval.task_id ??
     payloadValue(payload, "task_id") ??
     payloadValue(payload, "taskId") ??
     payloadValue(payload, "taskID");
@@ -223,7 +224,7 @@ export function BoardApprovalsPanel({
     const raw = usingExternal
       ? externalApprovals ?? []
       : approvalsQuery.data?.status === 200
-        ? approvalsQuery.data.data
+        ? approvalsQuery.data.data.items ?? []
         : [];
     return raw.map(normalizeApproval);
   }, [approvalsQuery.data, externalApprovals, usingExternal]);
@@ -266,9 +267,12 @@ export function BoardApprovalsPanel({
                 if (!previous || previous.status !== 200) return previous;
                 return {
                   ...previous,
-                  data: previous.data.map((item) =>
-                    item.id === approvalId ? result.data : item,
-                  ),
+                  data: {
+                    ...previous.data,
+                    items: previous.data.items.map((item) =>
+                      item.id === approvalId ? result.data : item,
+                    ),
+                  },
                 };
               },
             );

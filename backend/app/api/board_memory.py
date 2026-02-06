@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy import func
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sse_starlette.sse import EventSourceResponse
@@ -15,6 +16,7 @@ from sse_starlette.sse import EventSourceResponse
 from app.api.deps import ActorContext, get_board_or_404, require_admin_or_agent
 from app.core.config import settings
 from app.core.time import utcnow
+from app.db.pagination import paginate
 from app.db.session import async_session_maker, get_session
 from app.integrations.openclaw_gateway import GatewayConfig as GatewayClientConfig
 from app.integrations.openclaw_gateway import OpenClawGatewayError, ensure_session, send_message
@@ -23,6 +25,7 @@ from app.models.board_memory import BoardMemory
 from app.models.boards import Board
 from app.models.gateways import Gateway
 from app.schemas.board_memory import BoardMemoryCreate, BoardMemoryRead
+from app.schemas.pagination import DefaultLimitOffsetPage
 
 router = APIRouter(prefix="/boards/{board_id}/memory", tags=["board-memory"])
 
@@ -90,11 +93,19 @@ async def _fetch_memory_events(
     session: AsyncSession,
     board_id: UUID,
     since: datetime,
+    is_chat: bool | None = None,
 ) -> list[BoardMemory]:
     statement = (
         select(BoardMemory)
         .where(col(BoardMemory.board_id) == board_id)
-        .where(col(BoardMemory.created_at) >= since)
+        # Old/invalid rows (empty/whitespace-only content) can exist; exclude them to
+        # satisfy the NonEmptyStr response schema.
+        .where(func.length(func.trim(col(BoardMemory.content))) > 0)
+    )
+    if is_chat is not None:
+        statement = statement.where(col(BoardMemory.is_chat) == is_chat)
+    statement = (
+        statement.where(col(BoardMemory.created_at) >= since)
         .order_by(col(BoardMemory.created_at))
     )
     return list(await session.exec(statement))
@@ -159,25 +170,27 @@ async def _notify_chat_targets(
             continue
 
 
-@router.get("", response_model=list[BoardMemoryRead])
+@router.get("", response_model=DefaultLimitOffsetPage[BoardMemoryRead])
 async def list_board_memory(
-    limit: int = Query(default=50, ge=1, le=200),
-    offset: int = Query(default=0, ge=0),
+    is_chat: bool | None = Query(default=None),
     board: Board = Depends(get_board_or_404),
     session: AsyncSession = Depends(get_session),
     actor: ActorContext = Depends(require_admin_or_agent),
-) -> list[BoardMemory]:
+) -> DefaultLimitOffsetPage[BoardMemoryRead]:
     if actor.actor_type == "agent" and actor.agent:
         if actor.agent.board_id and actor.agent.board_id != board.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
     statement = (
         select(BoardMemory)
         .where(col(BoardMemory.board_id) == board.id)
-        .order_by(col(BoardMemory.created_at).desc())
-        .offset(offset)
-        .limit(limit)
+        # Old/invalid rows (empty/whitespace-only content) can exist; exclude them to
+        # satisfy the NonEmptyStr response schema.
+        .where(func.length(func.trim(col(BoardMemory.content))) > 0)
     )
-    return list(await session.exec(statement))
+    if is_chat is not None:
+        statement = statement.where(col(BoardMemory.is_chat) == is_chat)
+    statement = statement.order_by(col(BoardMemory.created_at).desc())
+    return await paginate(session, statement)
 
 
 @router.get("/stream")
@@ -186,6 +199,7 @@ async def stream_board_memory(
     board: Board = Depends(get_board_or_404),
     actor: ActorContext = Depends(require_admin_or_agent),
     since: str | None = Query(default=None),
+    is_chat: bool | None = Query(default=None),
 ) -> EventSourceResponse:
     if actor.actor_type == "agent" and actor.agent:
         if actor.agent.board_id and actor.agent.board_id != board.id:
@@ -199,7 +213,12 @@ async def stream_board_memory(
             if await request.is_disconnected():
                 break
             async with async_session_maker() as session:
-                memories = await _fetch_memory_events(session, board.id, last_seen)
+                memories = await _fetch_memory_events(
+                    session,
+                    board.id,
+                    last_seen,
+                    is_chat=is_chat,
+                )
             for memory in memories:
                 if memory.created_at > last_seen:
                     last_seen = memory.created_at
@@ -231,6 +250,7 @@ async def create_board_memory(
         board_id=board.id,
         content=payload.content,
         tags=payload.tags,
+        is_chat=is_chat,
         source=source,
     )
     session.add(memory)

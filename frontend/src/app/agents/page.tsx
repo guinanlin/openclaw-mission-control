@@ -98,7 +98,7 @@ export default function AgentsPage() {
   const boardsQuery = useListBoardsApiV1BoardsGet<
     listBoardsApiV1BoardsGetResponse,
     ApiError
-  >({
+  >(undefined, {
     query: {
       enabled: Boolean(isSignedIn),
       refetchInterval: 30_000,
@@ -109,7 +109,7 @@ export default function AgentsPage() {
   const agentsQuery = useListAgentsApiV1AgentsGet<
     listAgentsApiV1AgentsGetResponse,
     ApiError
-  >({
+  >(undefined, {
     query: {
       enabled: Boolean(isSignedIn),
       refetchInterval: 15_000,
@@ -118,10 +118,15 @@ export default function AgentsPage() {
   });
 
   const boards = useMemo(
-    () => (boardsQuery.data?.status === 200 ? boardsQuery.data.data : []),
+    () =>
+      boardsQuery.data?.status === 200 ? boardsQuery.data.data.items ?? [] : [],
     [boardsQuery.data]
   );
-  const agents = useMemo(() => agentsQuery.data?.data ?? [], [agentsQuery.data]);
+  const agents = useMemo(
+    () =>
+      agentsQuery.data?.status === 200 ? agentsQuery.data.data.items ?? [] : [],
+    [agentsQuery.data]
+  );
 
   const deleteMutation = useDeleteAgentApiV1AgentsAgentIdDelete<
     ApiError,
@@ -133,10 +138,18 @@ export default function AgentsPage() {
           await queryClient.cancelQueries({ queryKey: agentsKey });
           const previous =
             queryClient.getQueryData<listAgentsApiV1AgentsGetResponse>(agentsKey);
-          if (previous) {
+          if (previous && previous.status === 200) {
+            const nextItems = previous.data.items.filter(
+              (agent) => agent.id !== agentId
+            );
+            const removedCount = previous.data.items.length - nextItems.length;
             queryClient.setQueryData<listAgentsApiV1AgentsGetResponse>(agentsKey, {
               ...previous,
-              data: previous.data.filter((agent) => agent.id !== agentId),
+              data: {
+                ...previous.data,
+                items: nextItems,
+                total: Math.max(0, previous.data.total - removedCount),
+              },
             });
           }
           return { previous };

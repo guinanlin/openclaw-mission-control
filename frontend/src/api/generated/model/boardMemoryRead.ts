@@ -12,5 +12,6 @@ export interface BoardMemoryRead {
   source?: string | null;
   id: string;
   board_id: string;
+  is_chat?: boolean;
   created_at: string;
 }

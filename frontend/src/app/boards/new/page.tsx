@@ -37,7 +37,7 @@ export default function NewBoardPage() {
   const gatewaysQuery = useListGatewaysApiV1GatewaysGet<
     listGatewaysApiV1GatewaysGetResponse,
     ApiError
-  >({
+  >(undefined, {
     query: {
       enabled: Boolean(isSignedIn),
       refetchOnMount: "always",
@@ -59,7 +59,9 @@ export default function NewBoardPage() {
   });
 
   const gateways =
-    gatewaysQuery.data?.status === 200 ? gatewaysQuery.data.data : [];
+    gatewaysQuery.data?.status === 200
+      ? gatewaysQuery.data.data.items ?? []
+      : [];
   const displayGatewayId = gatewayId || gateways[0]?.id || "";
   const isLoading = gatewaysQuery.isLoading || createBoardMutation.isPending;
   const errorMessage = error ?? gatewaysQuery.error?.message ?? null;

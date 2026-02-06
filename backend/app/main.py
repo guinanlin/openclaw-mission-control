@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi_pagination import add_pagination
 
 from app.api.activity import router as activity_router
 from app.api.agent import router as agent_router
@@ -75,3 +76,5 @@ api_v1.include_router(approvals_router)
 api_v1.include_router(tasks_router)
 api_v1.include_router(users_router)
 app.include_router(api_v1)
+
+add_pagination(app)

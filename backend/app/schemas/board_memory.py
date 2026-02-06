@@ -9,12 +9,18 @@ from app.schemas.common import NonEmptyStr
 
 
 class BoardMemoryCreate(SQLModel):
+    # For writes, reject blank/whitespace-only content.
     content: NonEmptyStr
     tags: list[str] | None = None
     source: str | None = None
 
 
-class BoardMemoryRead(BoardMemoryCreate):
+class BoardMemoryRead(SQLModel):
     id: UUID
     board_id: UUID
+    # For reads, allow legacy rows that may have empty content (avoid response validation 500s).
+    content: str
+    tags: list[str] | None = None
+    source: str | None = None
+    is_chat: bool = False
     created_at: datetime

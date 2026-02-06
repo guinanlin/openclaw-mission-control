@@ -91,7 +91,7 @@ export default function NewAgentPage() {
   const boardsQuery = useListBoardsApiV1BoardsGet<
     listBoardsApiV1BoardsGetResponse,
     ApiError
-  >({
+  >(undefined, {
     query: {
       enabled: Boolean(isSignedIn),
       refetchOnMount: "always",
@@ -111,7 +111,8 @@ export default function NewAgentPage() {
     },
   });
 
-  const boards = boardsQuery.data?.status === 200 ? boardsQuery.data.data : [];
+  const boards =
+    boardsQuery.data?.status === 200 ? boardsQuery.data.data.items ?? [] : [];
   const displayBoardId = boardId || boards[0]?.id || "";
   const isLoading = boardsQuery.isLoading || createAgentMutation.isPending;
   const errorMessage = error ?? boardsQuery.error?.message ?? null;

@@ -9,5 +9,13 @@ export type ListTasksApiV1AgentBoardsBoardIdTasksGetParams = {
   status?: string | null;
   assigned_agent_id?: string | null;
   unassigned?: boolean | null;
-  limit?: number | null;
+  /**
+   * @minimum 1
+   * @maximum 200
+   */
+  limit?: number;
+  /**
+   * @minimum 0
+   */
+  offset?: number;
 };

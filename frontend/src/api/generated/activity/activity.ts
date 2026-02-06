@@ -18,8 +18,8 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
-  ActivityEventRead,
   HTTPValidationError,
+  LimitOffsetPageTypeVarCustomizedActivityEventRead,
   ListActivityApiV1ActivityGetParams,
 } from ".././model";
 
@@ -31,7 +31,7 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
  * @summary List Activity
  */
 export type listActivityApiV1ActivityGetResponse200 = {
-  data: ActivityEventRead[];
+  data: LimitOffsetPageTypeVarCustomizedActivityEventRead;
   status: 200;
 };
 

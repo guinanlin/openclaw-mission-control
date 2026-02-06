@@ -53,7 +53,7 @@ export default function BoardsPage() {
   const boardsQuery = useListBoardsApiV1BoardsGet<
     listBoardsApiV1BoardsGetResponse,
     ApiError
-  >({
+  >(undefined, {
     query: {
       enabled: Boolean(isSignedIn),
       refetchInterval: 30_000,
@@ -62,13 +62,9 @@ export default function BoardsPage() {
   });
 
   const boards = useMemo(
-    () => (boardsQuery.data?.status === 200 ? boardsQuery.data.data : []),
+    () =>
+      boardsQuery.data?.status === 200 ? boardsQuery.data.data.items ?? [] : [],
     [boardsQuery.data]
-  );
-
-  const sortedBoards = useMemo(
-    () => [...boards].sort((a, b) => a.name.localeCompare(b.name)),
-    [boards]
   );
 
   const deleteMutation = useDeleteBoardApiV1BoardsBoardIdDelete<
@@ -82,9 +78,17 @@ export default function BoardsPage() {
           const previous =
             queryClient.getQueryData<listBoardsApiV1BoardsGetResponse>(boardsKey);
           if (previous && previous.status === 200) {
+            const nextItems = previous.data.items.filter(
+              (board) => board.id !== boardId
+            );
+            const removedCount = previous.data.items.length - nextItems.length;
             queryClient.setQueryData<listBoardsApiV1BoardsGetResponse>(boardsKey, {
               ...previous,
-              data: previous.data.filter((board) => board.id !== boardId),
+              data: {
+                ...previous.data,
+                items: nextItems,
+                total: Math.max(0, previous.data.total - removedCount),
+              },
             });
           }
           return { previous };
@@ -159,7 +163,7 @@ export default function BoardsPage() {
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
-    data: sortedBoards,
+    data: boards,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -191,11 +195,11 @@ export default function BoardsPage() {
                     Boards
                   </h1>
                   <p className="mt-1 text-sm text-slate-500">
-                    Manage boards and task workflows. {sortedBoards.length} board
-                    {sortedBoards.length === 1 ? "" : "s"} total.
+                    Manage boards and task workflows. {boards.length} board
+                    {boards.length === 1 ? "" : "s"} total.
                   </p>
                 </div>
-                {sortedBoards.length > 0 ? (
+                {boards.length > 0 ? (
                   <Link
                     href="/boards/new"
                     className={buttonVariants({ size: "md", variant: "primary" })}

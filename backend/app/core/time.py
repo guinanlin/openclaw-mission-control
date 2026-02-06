@@ -8,4 +8,3 @@ def utcnow() -> datetime:
 
     # Keep naive UTC values for compatibility with existing DB schema/queries.
     return datetime.now(UTC).replace(tzinfo=None)
-

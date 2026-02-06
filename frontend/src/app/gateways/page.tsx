@@ -65,7 +65,7 @@ export default function GatewaysPage() {
   const gatewaysQuery = useListGatewaysApiV1GatewaysGet<
     listGatewaysApiV1GatewaysGetResponse,
     ApiError
-  >({
+  >(undefined, {
     query: {
       enabled: Boolean(isSignedIn),
       refetchInterval: 30_000,
@@ -73,7 +73,13 @@ export default function GatewaysPage() {
     },
   });
 
-  const gateways = useMemo(() => gatewaysQuery.data?.data ?? [], [gatewaysQuery.data]);
+  const gateways = useMemo(
+    () =>
+      gatewaysQuery.data?.status === 200
+        ? gatewaysQuery.data.data.items ?? []
+        : [],
+    [gatewaysQuery.data]
+  );
   const sortedGateways = useMemo(() => [...gateways], [gateways]);
 
   const deleteMutation = useDeleteGatewayApiV1GatewaysGatewayIdDelete<
@@ -86,10 +92,18 @@ export default function GatewaysPage() {
           await queryClient.cancelQueries({ queryKey: gatewaysKey });
           const previous =
             queryClient.getQueryData<listGatewaysApiV1GatewaysGetResponse>(gatewaysKey);
-          if (previous) {
+          if (previous && previous.status === 200) {
+            const nextItems = previous.data.items.filter(
+              (gateway) => gateway.id !== gatewayId
+            );
+            const removedCount = previous.data.items.length - nextItems.length;
             queryClient.setQueryData<listGatewaysApiV1GatewaysGetResponse>(gatewaysKey, {
               ...previous,
-              data: previous.data.filter((gateway) => gateway.id !== gatewayId),
+              data: {
+                ...previous.data,
+                items: nextItems,
+                total: Math.max(0, previous.data.total - removedCount),
+              },
             });
           }
           return { previous };

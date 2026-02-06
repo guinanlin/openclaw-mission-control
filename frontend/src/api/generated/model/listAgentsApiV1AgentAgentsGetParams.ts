@@ -7,5 +7,13 @@
 
 export type ListAgentsApiV1AgentAgentsGetParams = {
   board_id?: string | null;
-  limit?: number | null;
+  /**
+   * @minimum 1
+   * @maximum 200
+   */
+  limit?: number;
+  /**
+   * @minimum 0
+   */
+  offset?: number;
 };

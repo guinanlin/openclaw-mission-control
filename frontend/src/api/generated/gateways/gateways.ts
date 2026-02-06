@@ -34,7 +34,9 @@ import type {
   GetGatewaySessionApiV1GatewaysSessionsSessionIdGetParams,
   GetSessionHistoryApiV1GatewaysSessionsSessionIdHistoryGetParams,
   HTTPValidationError,
+  LimitOffsetPageTypeVarCustomizedGatewayRead,
   ListGatewaySessionsApiV1GatewaysSessionsGetParams,
+  ListGatewaysApiV1GatewaysGetParams,
   OkResponse,
   SendGatewaySessionMessageApiV1GatewaysSessionsSessionIdMessagePostParams,
 } from ".././model";
@@ -1451,26 +1453,52 @@ export function useGatewayCommandsApiV1GatewaysCommandsGet<
  * @summary List Gateways
  */
 export type listGatewaysApiV1GatewaysGetResponse200 = {
-  data: GatewayRead[];
+  data: LimitOffsetPageTypeVarCustomizedGatewayRead;
   status: 200;
+};
+
+export type listGatewaysApiV1GatewaysGetResponse422 = {
+  data: HTTPValidationError;
+  status: 422;
 };
 
 export type listGatewaysApiV1GatewaysGetResponseSuccess =
   listGatewaysApiV1GatewaysGetResponse200 & {
     headers: Headers;
   };
-export type listGatewaysApiV1GatewaysGetResponse =
-  listGatewaysApiV1GatewaysGetResponseSuccess;
+export type listGatewaysApiV1GatewaysGetResponseError =
+  listGatewaysApiV1GatewaysGetResponse422 & {
+    headers: Headers;
+  };
 
-export const getListGatewaysApiV1GatewaysGetUrl = () => {
-  return `/api/v1/gateways`;
+export type listGatewaysApiV1GatewaysGetResponse =
+  | listGatewaysApiV1GatewaysGetResponseSuccess
+  | listGatewaysApiV1GatewaysGetResponseError;
+
+export const getListGatewaysApiV1GatewaysGetUrl = (
+  params?: ListGatewaysApiV1GatewaysGetParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/gateways?${stringifiedParams}`
+    : `/api/v1/gateways`;
 };
 
 export const listGatewaysApiV1GatewaysGet = async (
+  params?: ListGatewaysApiV1GatewaysGetParams,
   options?: RequestInit,
 ): Promise<listGatewaysApiV1GatewaysGetResponse> => {
   return customFetch<listGatewaysApiV1GatewaysGetResponse>(
-    getListGatewaysApiV1GatewaysGetUrl(),
+    getListGatewaysApiV1GatewaysGetUrl(params),
     {
       ...options,
       method: "GET",
@@ -1478,32 +1506,37 @@ export const listGatewaysApiV1GatewaysGet = async (
   );
 };
 
-export const getListGatewaysApiV1GatewaysGetQueryKey = () => {
-  return [`/api/v1/gateways`] as const;
+export const getListGatewaysApiV1GatewaysGetQueryKey = (
+  params?: ListGatewaysApiV1GatewaysGetParams,
+) => {
+  return [`/api/v1/gateways`, ...(params ? [params] : [])] as const;
 };
 
 export const getListGatewaysApiV1GatewaysGetQueryOptions = <
   TData = Awaited<ReturnType<typeof listGatewaysApiV1GatewaysGet>>,
-  TError = unknown,
->(options?: {
-  query?: Partial<
-    UseQueryOptions<
-      Awaited<ReturnType<typeof listGatewaysApiV1GatewaysGet>>,
-      TError,
-      TData
-    >
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
+  TError = HTTPValidationError,
+>(
+  params?: ListGatewaysApiV1GatewaysGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listGatewaysApiV1GatewaysGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey =
-    queryOptions?.queryKey ?? getListGatewaysApiV1GatewaysGetQueryKey();
+    queryOptions?.queryKey ?? getListGatewaysApiV1GatewaysGetQueryKey(params);
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof listGatewaysApiV1GatewaysGet>>
   > = ({ signal }) =>
-    listGatewaysApiV1GatewaysGet({ signal, ...requestOptions });
+    listGatewaysApiV1GatewaysGet(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listGatewaysApiV1GatewaysGet>>,
@@ -1515,12 +1548,13 @@ export const getListGatewaysApiV1GatewaysGetQueryOptions = <
 export type ListGatewaysApiV1GatewaysGetQueryResult = NonNullable<
   Awaited<ReturnType<typeof listGatewaysApiV1GatewaysGet>>
 >;
-export type ListGatewaysApiV1GatewaysGetQueryError = unknown;
+export type ListGatewaysApiV1GatewaysGetQueryError = HTTPValidationError;
 
 export function useListGatewaysApiV1GatewaysGet<
   TData = Awaited<ReturnType<typeof listGatewaysApiV1GatewaysGet>>,
-  TError = unknown,
+  TError = HTTPValidationError,
 >(
+  params: undefined | ListGatewaysApiV1GatewaysGetParams,
   options: {
     query: Partial<
       UseQueryOptions<
@@ -1545,8 +1579,9 @@ export function useListGatewaysApiV1GatewaysGet<
 };
 export function useListGatewaysApiV1GatewaysGet<
   TData = Awaited<ReturnType<typeof listGatewaysApiV1GatewaysGet>>,
-  TError = unknown,
+  TError = HTTPValidationError,
 >(
+  params?: ListGatewaysApiV1GatewaysGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -1571,8 +1606,9 @@ export function useListGatewaysApiV1GatewaysGet<
 };
 export function useListGatewaysApiV1GatewaysGet<
   TData = Awaited<ReturnType<typeof listGatewaysApiV1GatewaysGet>>,
-  TError = unknown,
+  TError = HTTPValidationError,
 >(
+  params?: ListGatewaysApiV1GatewaysGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -1593,8 +1629,9 @@ export function useListGatewaysApiV1GatewaysGet<
 
 export function useListGatewaysApiV1GatewaysGet<
   TData = Awaited<ReturnType<typeof listGatewaysApiV1GatewaysGet>>,
-  TError = unknown,
+  TError = HTTPValidationError,
 >(
+  params?: ListGatewaysApiV1GatewaysGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -1609,7 +1646,10 @@ export function useListGatewaysApiV1GatewaysGet<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 } {
-  const queryOptions = getListGatewaysApiV1GatewaysGetQueryOptions(options);
+  const queryOptions = getListGatewaysApiV1GatewaysGetQueryOptions(
+    params,
+    options,
+  );
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,

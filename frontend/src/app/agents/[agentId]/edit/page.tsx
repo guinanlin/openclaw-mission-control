@@ -116,7 +116,7 @@ export default function EditAgentPage() {
   const boardsQuery = useListBoardsApiV1BoardsGet<
     listBoardsApiV1BoardsGetResponse,
     ApiError
-  >({
+  >(undefined, {
     query: {
       enabled: Boolean(isSignedIn),
       refetchOnMount: "always",
@@ -148,7 +148,8 @@ export default function EditAgentPage() {
     },
   });
 
-  const boards = boardsQuery.data?.status === 200 ? boardsQuery.data.data : [];
+  const boards =
+    boardsQuery.data?.status === 200 ? boardsQuery.data.data.items ?? [] : [];
   const loadedAgent: AgentRead | null =
     agentQuery.data?.status === 200 ? agentQuery.data.data : null;
 

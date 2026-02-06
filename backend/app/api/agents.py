@@ -3,8 +3,9 @@ from __future__ import annotations
 import asyncio
 import json
 import re
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from datetime import datetime, timedelta, timezone
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -17,6 +18,7 @@ from app.api.deps import ActorContext, require_admin_auth, require_admin_or_agen
 from app.core.agent_tokens import generate_agent_token, hash_agent_token
 from app.core.auth import AuthContext
 from app.core.time import utcnow
+from app.db.pagination import paginate
 from app.db.session import async_session_maker, get_session
 from app.integrations.openclaw_gateway import GatewayConfig as GatewayClientConfig
 from app.integrations.openclaw_gateway import OpenClawGatewayError, ensure_session, send_message
@@ -33,6 +35,7 @@ from app.schemas.agents import (
     AgentRead,
     AgentUpdate,
 )
+from app.schemas.pagination import DefaultLimitOffsetPage
 from app.services.activity_log import record_activity
 from app.services.agent_provisioning import (
     DEFAULT_HEARTBEAT_CONFIG,
@@ -231,14 +234,28 @@ async def _send_wakeup_message(
     await send_message(message, session_key=session_key, config=config, deliver=True)
 
 
-@router.get("", response_model=list[AgentRead])
+@router.get("", response_model=DefaultLimitOffsetPage[AgentRead])
 async def list_agents(
+    board_id: UUID | None = Query(default=None),
+    gateway_id: UUID | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
     auth: AuthContext = Depends(require_admin_auth),
-) -> list[AgentRead]:
-    agents = list(await session.exec(select(Agent)))
+) -> DefaultLimitOffsetPage[AgentRead]:
     main_session_keys = await _get_gateway_main_session_keys(session)
-    return [_to_agent_read(_with_computed_status(agent), main_session_keys) for agent in agents]
+    statement = select(Agent)
+    if board_id is not None:
+        statement = statement.where(col(Agent.board_id) == board_id)
+    if gateway_id is not None:
+        statement = statement.join(Board, col(Agent.board_id) == col(Board.id)).where(
+            col(Board.gateway_id) == gateway_id
+        )
+    statement = statement.order_by(col(Agent.created_at).desc())
+
+    def _transform(items: Sequence[Any]) -> Sequence[Any]:
+        agents = cast(Sequence[Agent], items)
+        return [_to_agent_read(_with_computed_status(agent), main_session_keys) for agent in agents]
+
+    return await paginate(session, statement, transformer=_transform)
 
 
 @router.get("/stream")

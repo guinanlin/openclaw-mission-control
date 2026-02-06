@@ -27,6 +27,8 @@ import type {
   AgentRead,
   AgentUpdate,
   HTTPValidationError,
+  LimitOffsetPageTypeVarCustomizedAgentRead,
+  ListAgentsApiV1AgentsGetParams,
   OkResponse,
   StreamAgentsApiV1AgentsStreamGetParams,
   UpdateAgentApiV1AgentsAgentIdPatchParams,
@@ -40,26 +42,52 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
  * @summary List Agents
  */
 export type listAgentsApiV1AgentsGetResponse200 = {
-  data: AgentRead[];
+  data: LimitOffsetPageTypeVarCustomizedAgentRead;
   status: 200;
+};
+
+export type listAgentsApiV1AgentsGetResponse422 = {
+  data: HTTPValidationError;
+  status: 422;
 };
 
 export type listAgentsApiV1AgentsGetResponseSuccess =
   listAgentsApiV1AgentsGetResponse200 & {
     headers: Headers;
   };
-export type listAgentsApiV1AgentsGetResponse =
-  listAgentsApiV1AgentsGetResponseSuccess;
+export type listAgentsApiV1AgentsGetResponseError =
+  listAgentsApiV1AgentsGetResponse422 & {
+    headers: Headers;
+  };
 
-export const getListAgentsApiV1AgentsGetUrl = () => {
-  return `/api/v1/agents`;
+export type listAgentsApiV1AgentsGetResponse =
+  | listAgentsApiV1AgentsGetResponseSuccess
+  | listAgentsApiV1AgentsGetResponseError;
+
+export const getListAgentsApiV1AgentsGetUrl = (
+  params?: ListAgentsApiV1AgentsGetParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/v1/agents?${stringifiedParams}`
+    : `/api/v1/agents`;
 };
 
 export const listAgentsApiV1AgentsGet = async (
+  params?: ListAgentsApiV1AgentsGetParams,
   options?: RequestInit,
 ): Promise<listAgentsApiV1AgentsGetResponse> => {
   return customFetch<listAgentsApiV1AgentsGetResponse>(
-    getListAgentsApiV1AgentsGetUrl(),
+    getListAgentsApiV1AgentsGetUrl(params),
     {
       ...options,
       method: "GET",
@@ -67,31 +95,37 @@ export const listAgentsApiV1AgentsGet = async (
   );
 };
 
-export const getListAgentsApiV1AgentsGetQueryKey = () => {
-  return [`/api/v1/agents`] as const;
+export const getListAgentsApiV1AgentsGetQueryKey = (
+  params?: ListAgentsApiV1AgentsGetParams,
+) => {
+  return [`/api/v1/agents`, ...(params ? [params] : [])] as const;
 };
 
 export const getListAgentsApiV1AgentsGetQueryOptions = <
   TData = Awaited<ReturnType<typeof listAgentsApiV1AgentsGet>>,
-  TError = unknown,
->(options?: {
-  query?: Partial<
-    UseQueryOptions<
-      Awaited<ReturnType<typeof listAgentsApiV1AgentsGet>>,
-      TError,
-      TData
-    >
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
+  TError = HTTPValidationError,
+>(
+  params?: ListAgentsApiV1AgentsGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listAgentsApiV1AgentsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
   const queryKey =
-    queryOptions?.queryKey ?? getListAgentsApiV1AgentsGetQueryKey();
+    queryOptions?.queryKey ?? getListAgentsApiV1AgentsGetQueryKey(params);
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof listAgentsApiV1AgentsGet>>
-  > = ({ signal }) => listAgentsApiV1AgentsGet({ signal, ...requestOptions });
+  > = ({ signal }) =>
+    listAgentsApiV1AgentsGet(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listAgentsApiV1AgentsGet>>,
@@ -103,12 +137,13 @@ export const getListAgentsApiV1AgentsGetQueryOptions = <
 export type ListAgentsApiV1AgentsGetQueryResult = NonNullable<
   Awaited<ReturnType<typeof listAgentsApiV1AgentsGet>>
 >;
-export type ListAgentsApiV1AgentsGetQueryError = unknown;
+export type ListAgentsApiV1AgentsGetQueryError = HTTPValidationError;
 
 export function useListAgentsApiV1AgentsGet<
   TData = Awaited<ReturnType<typeof listAgentsApiV1AgentsGet>>,
-  TError = unknown,
+  TError = HTTPValidationError,
 >(
+  params: undefined | ListAgentsApiV1AgentsGetParams,
   options: {
     query: Partial<
       UseQueryOptions<
@@ -133,8 +168,9 @@ export function useListAgentsApiV1AgentsGet<
 };
 export function useListAgentsApiV1AgentsGet<
   TData = Awaited<ReturnType<typeof listAgentsApiV1AgentsGet>>,
-  TError = unknown,
+  TError = HTTPValidationError,
 >(
+  params?: ListAgentsApiV1AgentsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -159,8 +195,9 @@ export function useListAgentsApiV1AgentsGet<
 };
 export function useListAgentsApiV1AgentsGet<
   TData = Awaited<ReturnType<typeof listAgentsApiV1AgentsGet>>,
-  TError = unknown,
+  TError = HTTPValidationError,
 >(
+  params?: ListAgentsApiV1AgentsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -181,8 +218,9 @@ export function useListAgentsApiV1AgentsGet<
 
 export function useListAgentsApiV1AgentsGet<
   TData = Awaited<ReturnType<typeof listAgentsApiV1AgentsGet>>,
-  TError = unknown,
+  TError = HTTPValidationError,
 >(
+  params?: ListAgentsApiV1AgentsGetParams,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -197,7 +235,7 @@ export function useListAgentsApiV1AgentsGet<
 ): UseQueryResult<TData, TError> & {
   queryKey: DataTag<QueryKey, TData, TError>;
 } {
-  const queryOptions = getListAgentsApiV1AgentsGetQueryOptions(options);
+  const queryOptions = getListAgentsApiV1AgentsGetQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,

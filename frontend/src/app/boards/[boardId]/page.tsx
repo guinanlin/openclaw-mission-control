@@ -28,16 +28,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { listAgentsApiV1AgentsGet, streamAgentsApiV1AgentsStreamGet } from "@/api/generated/agents/agents";
+import { streamAgentsApiV1AgentsStreamGet } from "@/api/generated/agents/agents";
 import {
-  listApprovalsApiV1BoardsBoardIdApprovalsGet,
   streamApprovalsApiV1BoardsBoardIdApprovalsStreamGet,
   updateApprovalApiV1BoardsBoardIdApprovalsApprovalIdPatch,
 } from "@/api/generated/approvals/approvals";
-import { getBoardApiV1BoardsBoardIdGet } from "@/api/generated/boards/boards";
+import { getBoardSnapshotApiV1BoardsBoardIdSnapshotGet } from "@/api/generated/boards/boards";
 import {
   createBoardMemoryApiV1BoardsBoardIdMemoryPost,
-  listBoardMemoryApiV1BoardsBoardIdMemoryGet,
   streamBoardMemoryApiV1BoardsBoardIdMemoryStreamGet,
 } from "@/api/generated/board-memory/board-memory";
 import {
@@ -45,7 +43,6 @@ import {
   createTaskCommentApiV1BoardsBoardIdTasksTaskIdCommentsPost,
   deleteTaskApiV1BoardsBoardIdTasksTaskIdDelete,
   listTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGet,
-  listTasksApiV1BoardsBoardIdTasksGet,
   streamTasksApiV1BoardsBoardIdTasksStreamGet,
   updateTaskApiV1BoardsBoardIdTasksTaskIdPatch,
 } from "@/api/generated/tasks/tasks";
@@ -54,6 +51,7 @@ import type {
   ApprovalRead,
   BoardMemoryRead,
   BoardRead,
+  TaskCardRead,
   TaskCommentRead,
   TaskRead,
 } from "@/api/generated/model";
@@ -61,13 +59,16 @@ import { cn } from "@/lib/utils";
 
 type Board = BoardRead;
 
-type TaskStatus = Exclude<TaskRead["status"], undefined>;
+type TaskStatus = Exclude<TaskCardRead["status"], undefined>;
 
-type Task = TaskRead & {
+type Task = Omit<
+  TaskCardRead,
+  "status" | "priority" | "approvals_count" | "approvals_pending_count"
+> & {
   status: TaskStatus;
   priority: string;
-  approvalsCount?: number;
-  approvalsPendingCount?: number;
+  approvals_count: number;
+  approvals_pending_count: number;
 };
 
 type Agent = AgentRead & { status: string };
@@ -78,10 +79,12 @@ type Approval = ApprovalRead & { status: string };
 
 type BoardChatMessage = BoardMemoryRead;
 
-const normalizeTask = (task: TaskRead): Task => ({
+const normalizeTask = (task: TaskCardRead): Task => ({
   ...task,
   status: task.status ?? "inbox",
   priority: task.priority ?? "medium",
+  approvals_count: task.approvals_count ?? 0,
+  approvals_pending_count: task.approvals_pending_count ?? 0,
 });
 
 const normalizeAgent = (agent: AgentRead): Agent => ({
@@ -93,15 +96,6 @@ const normalizeApproval = (approval: ApprovalRead): Approval => ({
   ...approval,
   status: approval.status ?? "pending",
 });
-
-const approvalTaskId = (approval: Approval) => {
-  const payload = approval.payload ?? {};
-  return (
-    (payload as Record<string, unknown>).task_id ??
-    (payload as Record<string, unknown>).taskId ??
-    (payload as Record<string, unknown>).taskID
-  );
-};
 
 const priorities = [
   { value: "low", label: "Low" },
@@ -244,31 +238,38 @@ export default function BoardDetailPage() {
   const loadBoard = async () => {
     if (!isSignedIn || !boardId) return;
     setIsLoading(true);
+    setIsApprovalsLoading(true);
     setError(null);
+    setApprovalsError(null);
+    setChatError(null);
     try {
-      const [boardResult, tasksResult, agentsResult] = await Promise.all([
-        getBoardApiV1BoardsBoardIdGet(boardId),
-        listTasksApiV1BoardsBoardIdTasksGet(boardId),
-        listAgentsApiV1AgentsGet(),
-      ]);
-
-      if (boardResult.status !== 200) throw new Error("Unable to load board.");
-      if (tasksResult.status !== 200) throw new Error("Unable to load tasks.");
-
-      setBoard(boardResult.data);
-      setTasks(tasksResult.data.map(normalizeTask));
-      setAgents(agentsResult.data.map(normalizeAgent));
+      const snapshotResult = await getBoardSnapshotApiV1BoardsBoardIdSnapshotGet(
+        boardId,
+      );
+      if (snapshotResult.status !== 200) {
+        throw new Error("Unable to load board snapshot.");
+      }
+      const snapshot = snapshotResult.data;
+      setBoard(snapshot.board);
+      setTasks((snapshot.tasks ?? []).map(normalizeTask));
+      setAgents((snapshot.agents ?? []).map(normalizeAgent));
+      setApprovals((snapshot.approvals ?? []).map(normalizeApproval));
+      setChatMessages(snapshot.chat_messages ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      const message = err instanceof Error ? err.message : "Something went wrong.";
+      setError(message);
+      setApprovalsError(message);
+      setChatError(message);
     } finally {
       setIsLoading(false);
+      setIsApprovalsLoading(false);
     }
   };
 
   useEffect(() => {
     loadBoard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boardId, isSignedIn]);
+  }, [board, boardId, isSignedIn]);
 
   useEffect(() => {
     tasksRef.current = tasks;
@@ -294,54 +295,6 @@ export default function BoardDetailPage() {
     return () => window.clearTimeout(timeout);
   }, [chatMessages, isChatOpen]);
 
-  const loadApprovals = useCallback(async () => {
-    if (!isSignedIn || !boardId) return;
-    setIsApprovalsLoading(true);
-    setApprovalsError(null);
-    try {
-      const result = await listApprovalsApiV1BoardsBoardIdApprovalsGet(boardId);
-      if (result.status !== 200) throw new Error("Unable to load approvals.");
-      setApprovals(result.data.map(normalizeApproval));
-    } catch (err) {
-      setApprovalsError(
-        err instanceof Error ? err.message : "Unable to load approvals.",
-      );
-    } finally {
-      setIsApprovalsLoading(false);
-    }
-  }, [boardId, isSignedIn]);
-
-  useEffect(() => {
-    loadApprovals();
-  }, [boardId, isSignedIn, loadApprovals]);
-
-  const loadBoardChat = useCallback(async () => {
-    if (!isSignedIn || !boardId) return;
-    setChatError(null);
-    try {
-      const result = await listBoardMemoryApiV1BoardsBoardIdMemoryGet(boardId, {
-        limit: 200,
-      });
-      if (result.status !== 200) throw new Error("Unable to load board chat.");
-      const data = result.data;
-      const chatOnly = data.filter((item) => item.tags?.includes("chat"));
-      const ordered = chatOnly.sort((a, b) => {
-        const aTime = new Date(a.created_at).getTime();
-        const bTime = new Date(b.created_at).getTime();
-        return aTime - bTime;
-      });
-      setChatMessages(ordered);
-    } catch (err) {
-      setChatError(
-        err instanceof Error ? err.message : "Unable to load board chat.",
-      );
-    }
-  }, [boardId, isSignedIn]);
-
-  useEffect(() => {
-    loadBoardChat();
-  }, [boardId, isSignedIn, loadBoardChat]);
-
   const latestChatTimestamp = (items: BoardChatMessage[]) => {
     if (!items.length) return undefined;
     const latest = items.reduce((max, item) => {
@@ -353,17 +306,18 @@ export default function BoardDetailPage() {
   };
 
   useEffect(() => {
-    if (!isSignedIn || !boardId) return;
+    if (!isSignedIn || !boardId || !board) return;
     let isCancelled = false;
     const abortController = new AbortController();
 
     const connect = async () => {
       try {
         const since = latestChatTimestamp(chatMessagesRef.current);
+        const params = { is_chat: true, ...(since ? { since } : {}) };
         const streamResult =
           await streamBoardMemoryApiV1BoardsBoardIdMemoryStreamGet(
             boardId,
-            since ? { since } : undefined,
+            params,
             {
               headers: { Accept: "text/event-stream" },
               signal: abortController.signal,
@@ -439,7 +393,7 @@ export default function BoardDetailPage() {
   }, [boardId, isSignedIn]);
 
   useEffect(() => {
-    if (!isSignedIn || !boardId) return;
+    if (!isSignedIn || !boardId || !board) return;
     let isCancelled = false;
     const abortController = new AbortController();
 
@@ -487,7 +441,15 @@ export default function BoardDetailPage() {
             }
             if (eventType === "approval" && data) {
               try {
-                const payload = JSON.parse(data) as { approval?: ApprovalRead };
+                const payload = JSON.parse(data) as {
+                  approval?: ApprovalRead;
+                  task_counts?: {
+                    task_id?: string;
+                    approvals_count?: number;
+                    approvals_pending_count?: number;
+                  };
+                  pending_approvals_count?: number;
+                };
                 if (payload.approval) {
                   const normalized = normalizeApproval(payload.approval);
                   setApprovals((prev) => {
@@ -501,6 +463,25 @@ export default function BoardDetailPage() {
                     next[index] = {
                       ...next[index],
                       ...normalized,
+                    };
+                    return next;
+                  });
+                }
+                if (payload.task_counts?.task_id) {
+                  const taskId = payload.task_counts.task_id;
+                  setTasks((prev) => {
+                    const index = prev.findIndex((task) => task.id === taskId);
+                    if (index === -1) return prev;
+                    const next = [...prev];
+                    const current = next[index];
+                    next[index] = {
+                      ...current,
+                      approvals_count:
+                        payload.task_counts?.approvals_count ??
+                        current.approvals_count,
+                      approvals_pending_count:
+                        payload.task_counts?.approvals_pending_count ??
+                        current.approvals_pending_count,
                     };
                     return next;
                   });
@@ -524,7 +505,7 @@ export default function BoardDetailPage() {
       isCancelled = true;
       abortController.abort();
     };
-  }, [boardId, isSignedIn]);
+  }, [board, boardId, isSignedIn]);
 
   useEffect(() => {
     if (!selectedTask) {
@@ -610,14 +591,37 @@ export default function BoardDetailPage() {
                     return [...prev, payload.comment as TaskComment];
                   });
                 } else if (payload.task) {
-                  const normalizedTask = normalizeTask(payload.task);
                   setTasks((prev) => {
-                    const index = prev.findIndex((item) => item.id === normalizedTask.id);
+                    const index = prev.findIndex((item) => item.id === payload.task?.id);
                     if (index === -1) {
-                      return [normalizedTask, ...prev];
+                      const assignee = payload.task?.assigned_agent_id
+                        ? agentsRef.current.find(
+                            (agent) => agent.id === payload.task?.assigned_agent_id,
+                          )?.name ?? null
+                        : null;
+                      const created = normalizeTask({
+                        ...payload.task,
+                        assignee,
+                        approvals_count: 0,
+                        approvals_pending_count: 0,
+                      } as TaskCardRead);
+                      return [created, ...prev];
                     }
                     const next = [...prev];
-                    next[index] = { ...next[index], ...normalizedTask };
+                    const existing = next[index];
+                    const assignee = payload.task?.assigned_agent_id
+                      ? agentsRef.current.find(
+                          (agent) => agent.id === payload.task?.assigned_agent_id,
+                        )?.name ?? null
+                      : null;
+                    const updated = normalizeTask({
+                      ...existing,
+                      ...payload.task,
+                      assignee,
+                      approvals_count: existing.approvals_count,
+                      approvals_pending_count: existing.approvals_pending_count,
+                    } as TaskCardRead);
+                    next[index] = { ...existing, ...updated };
                     return next;
                   });
                 }
@@ -727,7 +731,7 @@ export default function BoardDetailPage() {
       isCancelled = true;
       abortController.abort();
     };
-  }, [boardId, isSignedIn]);
+  }, [board, boardId, isSignedIn]);
 
   const resetForm = () => {
     setTitle("");
@@ -754,7 +758,14 @@ export default function BoardDetailPage() {
       });
       if (result.status !== 200) throw new Error("Unable to create task.");
 
-      const created = normalizeTask(result.data);
+      const created = normalizeTask({
+        ...result.data,
+        assignee: result.data.assigned_agent_id
+          ? assigneeById.get(result.data.assigned_agent_id) ?? null
+          : null,
+        approvals_count: 0,
+        approvals_pending_count: 0,
+      } as TaskCardRead);
       setTasks((prev) => [created, ...prev]);
       setIsDialogOpen(false);
       resetForm();
@@ -829,49 +840,9 @@ export default function BoardDetailPage() {
     });
   }, [liveFeed]);
 
-  const pendingApprovalsByTaskId = useMemo(() => {
-    const map = new Map<string, number>();
-    approvals
-      .filter((approval) => approval.status === "pending")
-      .forEach((approval) => {
-        const taskId = approvalTaskId(approval);
-        if (!taskId || typeof taskId !== "string") return;
-        map.set(taskId, (map.get(taskId) ?? 0) + 1);
-      });
-    return map;
-  }, [approvals]);
-
-  const totalApprovalsByTaskId = useMemo(() => {
-    const map = new Map<string, number>();
-    approvals.forEach((approval) => {
-      const taskId = approvalTaskId(approval);
-      if (!taskId || typeof taskId !== "string") return;
-      map.set(taskId, (map.get(taskId) ?? 0) + 1);
-    });
-    return map;
-  }, [approvals]);
-
-  const displayTasks = useMemo(
-    () =>
-      tasks.map((task) => ({
-        ...task,
-        assignee: task.assigned_agent_id
-          ? assigneeById.get(task.assigned_agent_id)
-          : undefined,
-        approvalsCount: totalApprovalsByTaskId.get(task.id) ?? 0,
-        approvalsPendingCount: pendingApprovalsByTaskId.get(task.id) ?? 0,
-      })),
-    [tasks, assigneeById, pendingApprovalsByTaskId, totalApprovalsByTaskId],
-  );
-
-  const boardAgents = useMemo(
-    () => agents.filter((agent) => !boardId || agent.board_id === boardId),
-    [agents, boardId],
-  );
-
   const assignableAgents = useMemo(
-    () => boardAgents.filter((agent) => !agent.is_board_lead),
-    [boardAgents],
+    () => agents.filter((agent) => !agent.is_board_lead),
+    [agents],
   );
 
   const hasTaskChanges = useMemo(() => {
@@ -912,10 +883,7 @@ export default function BoardDetailPage() {
   const taskApprovals = useMemo(() => {
     if (!selectedTask) return [];
     const taskId = selectedTask.id;
-    return approvals.filter((approval) => {
-      const payloadTaskId = approvalTaskId(approval);
-      return payloadTaskId === taskId;
-    });
+    return approvals.filter((approval) => approval.task_id === taskId);
   }, [approvals, selectedTask]);
 
   const workingAgentIds = useMemo(() => {
@@ -935,12 +903,12 @@ export default function BoardDetailPage() {
       if (agent.status === "provisioning") return 2;
       return 3;
     };
-    return [...boardAgents].sort((a, b) => {
+    return [...agents].sort((a, b) => {
       const diff = rank(a) - rank(b);
       if (diff !== 0) return diff;
       return a.name.localeCompare(b.name);
     });
-  }, [boardAgents, workingAgentIds]);
+  }, [agents, workingAgentIds]);
 
   const loadComments = async (taskId: string) => {
     if (!isSignedIn || !boardId) return;
@@ -953,7 +921,7 @@ export default function BoardDetailPage() {
           taskId,
         );
       if (result.status !== 200) throw new Error("Unable to load comments.");
-      setComments(result.data);
+      setComments(result.data.items ?? []);
     } catch (err) {
       setCommentsError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -1059,9 +1027,20 @@ export default function BoardDetailPage() {
         },
       );
       if (result.status !== 200) throw new Error("Unable to update task.");
-      const updated = normalizeTask(result.data);
+      const previous =
+        tasksRef.current.find((task) => task.id === selectedTask.id) ??
+        selectedTask;
+      const updated = normalizeTask({
+        ...previous,
+        ...result.data,
+        assignee: result.data.assigned_agent_id
+          ? assigneeById.get(result.data.assigned_agent_id) ?? null
+          : null,
+        approvals_count: previous.approvals_count,
+        approvals_pending_count: previous.approvals_pending_count,
+      } as TaskCardRead);
       setTasks((prev) =>
-        prev.map((task) => (task.id === updated.id ? updated : task)),
+        prev.map((task) => (task.id === updated.id ? { ...task, ...updated } : task)),
       );
       setSelectedTask(updated);
       if (closeOnSuccess) {
@@ -1119,6 +1098,7 @@ export default function BoardDetailPage() {
               status,
               assigned_agent_id:
                 status === "inbox" ? null : task.assigned_agent_id,
+              assignee: status === "inbox" ? null : task.assignee,
             }
           : task,
       ),
@@ -1130,9 +1110,17 @@ export default function BoardDetailPage() {
         { status },
       );
       if (result.status !== 200) throw new Error("Unable to move task.");
-      const updated = normalizeTask(result.data);
+      const updated = normalizeTask({
+        ...currentTask,
+        ...result.data,
+        assignee: result.data.assigned_agent_id
+          ? assigneeById.get(result.data.assigned_agent_id) ?? null
+          : null,
+        approvals_count: currentTask.approvals_count,
+        approvals_pending_count: currentTask.approvals_pending_count,
+      } as TaskCardRead);
       setTasks((prev) =>
-        prev.map((task) => (task.id === updated.id ? updated : task)),
+        prev.map((task) => (task.id === updated.id ? { ...task, ...updated } : task)),
       );
     } catch (err) {
       setTasks(previousTasks);
@@ -1262,6 +1250,7 @@ export default function BoardDetailPage() {
   const approvalRows = (approval: Approval) => {
     const payload = approval.payload ?? {};
     const taskId =
+      approval.task_id ??
       approvalPayloadValue(payload, "task_id") ??
       approvalPayloadValue(payload, "taskId") ??
       approvalPayloadValue(payload, "taskID");
@@ -1499,7 +1488,7 @@ export default function BoardDetailPage() {
                 <>
                   {viewMode === "board" ? (
                     <TaskBoard
-                      tasks={displayTasks}
+                      tasks={tasks}
                       onTaskSelect={openComments}
                       onTaskMove={handleTaskMove}
                     />
@@ -1512,7 +1501,7 @@ export default function BoardDetailPage() {
                               All tasks
                             </p>
                             <p className="text-xs text-slate-500">
-                              {displayTasks.length} tasks in this board
+                              {tasks.length} tasks in this board
                             </p>
                           </div>
                           <Button
@@ -1526,12 +1515,12 @@ export default function BoardDetailPage() {
                         </div>
                       </div>
                       <div className="divide-y divide-slate-100">
-                        {displayTasks.length === 0 ? (
+                        {tasks.length === 0 ? (
                           <div className="px-5 py-8 text-sm text-slate-500">
                             No tasks yet. Create your first task to get started.
                           </div>
                         ) : (
-                          displayTasks.map((task) => (
+                          tasks.map((task) => (
                             <button
                               key={task.id}
                               type="button"
@@ -1553,10 +1542,10 @@ export default function BoardDetailPage() {
                                   </p>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                                  {task.approvalsPendingCount ? (
+                                  {task.approvals_pending_count ? (
                                     <span className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
                                       <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                                      Approval needed · {task.approvalsPendingCount}
+                                      Approval needed · {task.approvals_pending_count}
                                     </span>
                                   ) : null}
                                   <span

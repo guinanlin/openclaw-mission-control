@@ -15,8 +15,8 @@ type Task = {
   description?: string | null;
   due_at?: string | null;
   assigned_agent_id?: string | null;
-  assignee?: string;
-  approvalsPendingCount?: number;
+  assignee?: string | null;
+  approvals_pending_count?: number;
 };
 
 type TaskBoardProps = {
@@ -187,9 +187,9 @@ export function TaskBoard({
                       key={task.id}
                       title={task.title}
                       priority={task.priority}
-                      assignee={task.assignee}
+                      assignee={task.assignee ?? undefined}
                       due={formatDueDate(task.due_at)}
-                      approvalsPendingCount={task.approvalsPendingCount}
+                      approvalsPendingCount={task.approvals_pending_count}
                       onClick={() => onTaskSelect?.(task)}
                       draggable
                       isDragging={draggingId === task.id}
