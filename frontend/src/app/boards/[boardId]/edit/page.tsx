@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 import { SignInButton, SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
@@ -55,6 +55,8 @@ export default function EditBoardPage() {
   const boardIdParam = params?.boardId;
   const boardId = Array.isArray(boardIdParam) ? boardIdParam[0] : boardIdParam;
 
+  const mainRef = useRef<HTMLElement | null>(null);
+
   const [board, setBoard] = useState<BoardRead | null>(null);
   const [name, setName] = useState<string | undefined>(undefined);
   const [gatewayId, setGatewayId] = useState<string | undefined>(undefined);
@@ -77,6 +79,19 @@ export default function EditBoardPage() {
     onboardingParam.toLowerCase() !== "false";
 
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(shouldAutoOpenOnboarding);
+
+  useEffect(() => {
+    const mainEl = mainRef.current;
+    if (!mainEl) return;
+    if (!isOnboardingOpen) return;
+
+    const previousOverflow = mainEl.style.overflow;
+    mainEl.style.overflow = "hidden";
+
+    return () => {
+      mainEl.style.overflow = previousOverflow;
+    };
+  }, [isOnboardingOpen]);
 
   useEffect(() => {
     if (!boardId) return;
@@ -233,7 +248,7 @@ export default function EditBoardPage() {
       </SignedOut>
       <SignedIn>
         <DashboardSidebar />
-        <main className="flex-1 overflow-y-auto bg-slate-50">
+        <main ref={mainRef} className="flex-1 overflow-y-auto bg-slate-50">
           <div className="border-b border-slate-200 bg-white px-8 py-6">
             <div>
               <h1 className="font-heading text-2xl font-semibold text-slate-900 tracking-tight">
@@ -397,19 +412,20 @@ export default function EditBoardPage() {
       <Dialog open={isOnboardingOpen} onOpenChange={setIsOnboardingOpen}>
         <DialogContent
           aria-label="Board onboarding"
-          className="relative"
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
         >
-          <DialogClose asChild>
-            <button
-              type="button"
-              className="absolute right-4 top-4 rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50"
-              aria-label="Close onboarding"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </DialogClose>
+          <div className="flex">
+            <DialogClose asChild>
+              <button
+                type="button"
+                className="sticky top-4 z-10 ml-auto rounded-lg border border-slate-200 bg-[color:var(--surface)] p-2 text-slate-500 transition hover:bg-slate-50"
+                aria-label="Close onboarding"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </DialogClose>
+          </div>
           {boardId ? (
             <BoardOnboardingChat
               boardId={boardId}
