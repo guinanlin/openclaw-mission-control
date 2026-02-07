@@ -1,20 +1,25 @@
 /// <reference types="cypress" />
 
-type ClerkOtpLoginOptions = {
-  clerkOrigin: string;
-  email: string;
-  otp: string;
-};
-
-function requireEnv(name: string): string {
+function getEnv(name: string, fallback?: string): string {
   const value = Cypress.env(name) as string | undefined;
-  if (!value) {
-    throw new Error(
-      `Missing Cypress env var ${name}. ` +
-        `Set it via CYPRESS_${name}=... in CI/local before running Clerk login tests.`,
-    );
-  }
-  return value;
+  if (value) return value;
+  if (fallback !== undefined) return fallback;
+  throw new Error(
+    `Missing Cypress env var ${name}. ` +
+      `Set it via CYPRESS_${name}=... in CI/local before running Clerk login tests.`,
+  );
+}
+
+function clerkOriginFromPublishableKey(): string {
+  const key = getEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY");
+
+  // pk_test_<base64(domain$)> OR pk_live_<...>
+  const m = /^pk_(?:test|live)_(.+)$/.exec(key);
+  if (!m) throw new Error(`Unexpected Clerk publishable key format: ${key}`);
+
+  const decoded = atob(m[1]); // e.g. beloved-ghost-73.clerk.accounts.dev$
+  const domain = decoded.replace(/\$$/, "");
+  return `https://${domain}`;
 }
 
 function normalizeOrigin(value: string): string {
@@ -22,48 +27,43 @@ function normalizeOrigin(value: string): string {
     const url = new URL(value);
     return url.origin;
   } catch {
-    // allow providing just an origin-like string
     return value.replace(/\/$/, "");
   }
 }
 
 Cypress.Commands.add("loginWithClerkOtp", () => {
-  const clerkOrigin = normalizeOrigin(requireEnv("CLERK_ORIGIN"));
-  const email = requireEnv("CLERK_TEST_EMAIL");
-  const otp = requireEnv("CLERK_TEST_OTP");
+  const clerkOrigin = normalizeOrigin(
+    getEnv("CLERK_ORIGIN", clerkOriginFromPublishableKey()),
+  );
+  const email = getEnv("CLERK_TEST_EMAIL", "jane+clerk_test@example.com");
+  const otp = getEnv("CLERK_TEST_OTP", "424242");
 
-  const opts: ClerkOtpLoginOptions = { clerkOrigin, email, otp };
-
-  // Navigate to a dedicated sign-in route that performs a top-level redirect
-  // to Clerk hosted sign-in (avoids modal/iframe limitations in Cypress).
+  // Navigate to a dedicated sign-in route that renders Clerk SignIn top-level.
+  // Cypress cannot reliably drive Clerk modal/iframe flows.
   cy.visit("/sign-in");
 
-  // The Clerk UI is typically hosted on a different origin (clerk.accounts.dev / clerk.com).
-  // Use cy.origin to drive the UI in Chrome.
   cy.origin(
-    opts.clerkOrigin,
-    { args: { email: opts.email, otp: opts.otp } },
-    ({ email, otp }) => {
-      // Email / identifier input
+    clerkOrigin,
+    { args: { email, otp } },
+    ({ email: e, otp: o }) => {
       cy.get('input[type="email"], input[name="identifier"], input[autocomplete="email"]', {
         timeout: 20_000,
       })
         .first()
         .clear()
-        .type(email, { delay: 10 });
+        .type(e, { delay: 10 });
 
-      // Submit / continue
       cy.get('button[type="submit"], button')
         .contains(/continue|sign in|send|next/i)
         .click({ force: true });
 
-      // OTP input - Clerk commonly uses autocomplete=one-time-code
-      cy.get('input[autocomplete="one-time-code"], input[name*="code"], input[inputmode="numeric"]', {
-        timeout: 20_000,
-      })
+      cy.get(
+        'input[autocomplete="one-time-code"], input[name*="code"], input[inputmode="numeric"]',
+        { timeout: 20_000 },
+      )
         .first()
         .clear()
-        .type(otp, { delay: 10 });
+        .type(o, { delay: 10 });
 
       // Final submit (some flows auto-submit)
       cy.get("body").then(($body) => {
@@ -86,12 +86,8 @@ declare global {
   namespace Cypress {
     interface Chainable {
       /**
-       * Logs in via the real Clerk modal using deterministic OTP credentials.
-       *
-       * Requires env vars:
-       * - CYPRESS_CLERK_ORIGIN (e.g. https://<subdomain>.clerk.accounts.dev)
-       * - CYPRESS_CLERK_TEST_EMAIL
-       * - CYPRESS_CLERK_TEST_OTP
+       * Logs in via real Clerk using deterministic OTP credentials.
+       * Defaults (non-secret): jane+clerk_test@example.com / 424242.
        */
       loginWithClerkOtp(): Chainable<void>;
     }
