@@ -1,14 +1,13 @@
-import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
+"use client";
+
+import { SignIn } from "@clerk/nextjs";
 
 export default function SignInPage() {
-  const { userId, redirectToSignIn } = auth();
-
-  if (userId) {
-    redirect("/activity");
-  }
-
-  // Top-level redirect to Clerk hosted sign-in.
-  // Cypress E2E cannot reliably drive Clerk modal/iframe login.
-  return redirectToSignIn({ returnBackUrl: "/activity" });
+  // Dedicated sign-in route for Cypress E2E.
+  // Avoids modal/iframe auth flows and gives Cypress a stable top-level page.
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
+      <SignIn routing="path" path="/sign-in" forceRedirectUrl="/activity" />
+    </main>
+  );
 }
