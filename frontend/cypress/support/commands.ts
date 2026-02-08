@@ -53,53 +53,73 @@ Cypress.Commands.add("loginWithClerkOtp", () => {
   // Cypress cannot reliably drive Clerk modal/iframe flows.
   cy.visit("/sign-in");
 
-  // Clerk SignIn can render on our app origin (localhost) or redirect to Clerk-hosted UI,
-  // depending on config/version. Handle both.
-  const fillOtpFlow = (email: string, otp: string) => {
-    cy.get(
-      'input[type="email"], input[name="identifier"], input[autocomplete="email"]',
-      { timeout: 20_000 },
-    )
+  const emailSelector =
+    'input[type="email"], input[name="identifier"], input[autocomplete="email"]';
+  const otpSelector =
+    'input[autocomplete="one-time-code"], input[name*="code"], input[inputmode="numeric"]';
+  const continueSelector = 'button[type="submit"], button';
+
+  const fillEmailStep = (email: string) => {
+    cy.get(emailSelector, { timeout: 20_000 })
       .first()
       .clear()
       .type(email, { delay: 10 });
 
-    cy.get('button[type="submit"], button')
+    cy.get(continueSelector)
       .contains(/continue|sign in|send|next/i)
       .click({ force: true });
+  };
 
-    cy.get(
-      'input[autocomplete="one-time-code"], input[name*="code"], input[inputmode="numeric"]',
-      { timeout: 20_000 },
-    )
-      .first()
-      .clear()
-      .type(otp, { delay: 10 });
+  const fillOtpAndSubmit = (otp: string) => {
+    cy.get(otpSelector, { timeout: 20_000 }).first().clear().type(otp, { delay: 10 });
 
     cy.get("body").then(($body) => {
       const hasSubmit = $body
-        .find('button[type="submit"], button')
+        .find(continueSelector)
         .toArray()
         .some((el) => /verify|continue|sign in|confirm/i.test(el.textContent || ""));
       if (hasSubmit) {
-        cy.get('button[type="submit"], button')
+        cy.get(continueSelector)
           .contains(/verify|continue|sign in|confirm/i)
           .click({ force: true });
       }
     });
   };
 
+  // Clerk SignIn can start on our app origin and then redirect to Clerk-hosted UI.
+  // We do email step first, then decide where the OTP step lives based on the *current* origin.
+  fillEmailStep(opts.email);
+
   cy.location("origin", { timeout: 20_000 }).then((origin) => {
-    if (origin === opts.clerkOrigin) {
+    const current = normalizeOrigin(origin);
+    if (current === opts.clerkOrigin) {
       cy.origin(
         opts.clerkOrigin,
-        { args: { email: opts.email, otp: opts.otp } },
-        ({ email, otp }) => {
-          fillOtpFlow(email, otp);
+        { args: { otp: opts.otp } },
+        ({ otp }) => {
+          cy.get(
+            'input[autocomplete="one-time-code"], input[name*="code"], input[inputmode="numeric"]',
+            { timeout: 20_000 },
+          )
+            .first()
+            .clear()
+            .type(otp, { delay: 10 });
+
+          cy.get("body").then(($body) => {
+            const hasSubmit = $body
+              .find('button[type="submit"], button')
+              .toArray()
+              .some((el) => /verify|continue|sign in|confirm/i.test(el.textContent || ""));
+            if (hasSubmit) {
+              cy.get('button[type="submit"], button')
+                .contains(/verify|continue|sign in|confirm/i)
+                .click({ force: true });
+            }
+          });
         },
       );
     } else {
-      fillOtpFlow(opts.email, opts.otp);
+      fillOtpAndSubmit(opts.otp);
     }
   });
 });
