@@ -2,6 +2,7 @@
 
 describe("/activity feed", () => {
   const apiBase = "**/api/v1";
+  const email = Cypress.env("CLERK_TEST_EMAIL") || "jane+clerk_test@example.com";
 
   function stubStreamEmpty() {
     cy.intercept(
@@ -21,18 +22,10 @@ describe("/activity feed", () => {
     cy.contains(/live feed/i, { timeout: 30_000 }).should("be.visible");
   }
 
-  it("auth negative: wrong OTP keeps us on sign-in", () => {
-    // Start from app-origin sign-in to avoid cross-origin confusion.
-    cy.visit("/sign-in");
-
-    // Override OTP just for this test.
-    Cypress.env("CLERK_TEST_OTP", "000000");
-
-    // Expect login flow to fail; easiest assertion is that we remain on sign-in.
-    // (The shared helper does not currently expose a typed hook to assert the error text.)
-    cy.loginWithClerkOtp();
-
-    cy.location("pathname", { timeout: 30_000 }).should("match", /\/sign-in/);
+  it("auth negative: signed-out user cannot access /activity", () => {
+    // Story: signed-out user tries to visit /activity and is redirected to sign-in.
+    cy.visit("/activity");
+    cy.location("pathname", { timeout: 20_000 }).should("match", /\/sign-in/);
   });
 
   it("happy path: renders task comment cards", () => {
@@ -58,7 +51,9 @@ describe("/activity feed", () => {
     stubStreamEmpty();
 
     // Story: user signs in, then visits /activity and sees the live feed.
-    cy.loginWithClerkOtp();
+    cy.visit("/sign-in");
+    cy.clerkLoaded();
+    cy.clerkSignIn({ strategy: "email_code", identifier: email });
 
     cy.visit("/activity");
     assertSignedInAndLanded();
@@ -77,7 +72,9 @@ describe("/activity feed", () => {
     stubStreamEmpty();
 
     // Story: user signs in, then visits /activity and sees an empty-state message.
-    cy.loginWithClerkOtp();
+    cy.visit("/sign-in");
+    cy.clerkLoaded();
+    cy.clerkSignIn({ strategy: "email_code", identifier: email });
 
     cy.visit("/activity");
     assertSignedInAndLanded();
@@ -95,7 +92,9 @@ describe("/activity feed", () => {
     stubStreamEmpty();
 
     // Story: user signs in, then visits /activity; API fails and user sees an error.
-    cy.loginWithClerkOtp();
+    cy.visit("/sign-in");
+    cy.clerkLoaded();
+    cy.clerkSignIn({ strategy: "email_code", identifier: email });
 
     cy.visit("/activity");
     assertSignedInAndLanded();

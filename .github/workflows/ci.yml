@@ -121,14 +121,24 @@ jobs:
       - name: Run Cypress E2E
         env:
           NEXT_TELEMETRY_DISABLED: "1"
-          # Vars for shared Clerk OTP helper (frontend/cypress/support/commands.ts)
-          # Provide deterministic test creds directly (no secretless skipping).
-          CYPRESS_CLERK_TEST_EMAIL: "jane+clerk_test@example.com"
-          CYPRESS_CLERK_TEST_OTP: "424242"
-          # Provide publishable key to Cypress so helper can derive CLERK_ORIGIN.
-          CYPRESS_NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          # Clerk testing tokens (official @clerk/testing Cypress integration)
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           # Also set for the app itself.
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_JWKS_URL: ${{ vars.CLERK_JWKS_URL }}
+          # Test user identifier (used by cy.clerkSignIn)
+          CYPRESS_CLERK_TEST_EMAIL: "jane+clerk_test@example.com"
         run: |
           cd frontend
           npm run e2e -- --browser chrome
+
+      - name: Upload Cypress artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-artifacts
+          if-no-files-found: ignore
+          path: |
+            frontend/cypress/screenshots/**
+            frontend/cypress/videos/**

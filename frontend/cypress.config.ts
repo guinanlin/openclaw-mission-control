@@ -1,4 +1,5 @@
 import { defineConfig } from "cypress";
+import { clerkSetup } from "@clerk/testing/cypress";
 
 export default defineConfig({
   env: {
@@ -12,5 +13,8 @@ export default defineConfig({
     baseUrl: "http://localhost:3000",
     specPattern: "cypress/e2e/**/*.cy.{js,jsx,ts,tsx}",
     supportFile: "cypress/support/e2e.ts",
+    setupNodeEvents(on, config) {
+      return clerkSetup({ config });
+    },
   },
 });
