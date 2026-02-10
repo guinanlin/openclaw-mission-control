@@ -941,6 +941,29 @@ async def cleanup_agent(
     return None
 
 
+async def cleanup_main_agent(
+    agent: Agent,
+    gateway: Gateway,
+) -> str | None:
+    """Remove the gateway-main agent from gateway config and delete its session."""
+    if not gateway.url:
+        return None
+    if not gateway.workspace_root:
+        msg = "gateway_workspace_root is required"
+        raise ValueError(msg)
+
+    workspace_path = _workspace_path(agent, gateway.workspace_root)
+    control_plane = _control_plane_for_gateway(gateway)
+    agent_id = GatewayAgentIdentity.openclaw_agent_id(gateway)
+    await control_plane.delete_agent(agent_id, delete_files=True)
+
+    session_key = (agent.openclaw_session_id or GatewayAgentIdentity.session_key(gateway) or "").strip()
+    if session_key:
+        with suppress(OpenClawGatewayError):
+            await control_plane.delete_agent_session(session_key)
+    return workspace_path
+
+
 _T = TypeVar("_T")
 
 

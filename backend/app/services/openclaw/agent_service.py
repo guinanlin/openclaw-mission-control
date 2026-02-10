@@ -23,7 +23,11 @@ from app.db import crud
 from app.db.pagination import paginate
 from app.db.session import async_session_maker
 from app.integrations.openclaw_gateway import GatewayConfig as GatewayClientConfig
-from app.integrations.openclaw_gateway import OpenClawGatewayError, ensure_session, send_message
+from app.integrations.openclaw_gateway import (
+    OpenClawGatewayError,
+    ensure_session,
+    send_message,
+)
 from app.models.activity_events import ActivityEvent
 from app.models.agents import Agent
 from app.models.boards import Board
@@ -50,6 +54,7 @@ from app.services.openclaw.provisioning import (
     MainAgentProvisionRequest,
     ProvisionOptions,
     cleanup_agent,
+    cleanup_main_agent,
     provision_agent,
     provision_main_agent,
 )
@@ -1330,24 +1335,50 @@ class AgentLifecycleService:
             return OkResponse()
         await self.require_agent_access(agent=agent, ctx=ctx, write=True)
 
-        board = await self.require_board(str(agent.board_id) if agent.board_id else None)
-        gateway, client_config = await self.require_gateway(board)
-        try:
-            workspace_path = await cleanup_agent(agent, gateway)
-        except OpenClawGatewayError as exc:
-            self.record_instruction_failure(self.session, agent, str(exc), "delete")
-            await self.session.commit()
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Gateway cleanup failed: {exc}",
-            ) from exc
-        except (OSError, RuntimeError, ValueError) as exc:  # pragma: no cover
-            self.record_instruction_failure(self.session, agent, str(exc), "delete")
-            await self.session.commit()
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Workspace cleanup failed: {exc}",
-            ) from exc
+        gateway: Gateway | None = None
+        client_config: GatewayClientConfig | None = None
+        workspace_path: str | None = None
+
+        if agent.board_id is None:
+            # Gateway-main agents are not tied to a board; resolve via agent.gateway_id.
+            gateway = await Gateway.objects.by_id(agent.gateway_id).first(self.session)
+            if gateway and gateway.url:
+                client_config = GatewayClientConfig(url=gateway.url, token=gateway.token)
+                try:
+                    workspace_path = await cleanup_main_agent(agent, gateway)
+                except OpenClawGatewayError as exc:
+                    self.record_instruction_failure(self.session, agent, str(exc), "delete")
+                    await self.session.commit()
+                    raise HTTPException(
+                        status_code=status.HTTP_502_BAD_GATEWAY,
+                        detail=f"Gateway cleanup failed: {exc}",
+                    ) from exc
+                except (OSError, RuntimeError, ValueError) as exc:  # pragma: no cover
+                    self.record_instruction_failure(self.session, agent, str(exc), "delete")
+                    await self.session.commit()
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Workspace cleanup failed: {exc}",
+                    ) from exc
+        else:
+            board = await self.require_board(str(agent.board_id))
+            gateway, client_config = await self.require_gateway(board)
+            try:
+                workspace_path = await cleanup_agent(agent, gateway)
+            except OpenClawGatewayError as exc:
+                self.record_instruction_failure(self.session, agent, str(exc), "delete")
+                await self.session.commit()
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Gateway cleanup failed: {exc}",
+                ) from exc
+            except (OSError, RuntimeError, ValueError) as exc:  # pragma: no cover
+                self.record_instruction_failure(self.session, agent, str(exc), "delete")
+                await self.session.commit()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Workspace cleanup failed: {exc}",
+                ) from exc
 
         record_activity(
             self.session,
@@ -1387,6 +1418,10 @@ class AgentLifecycleService:
         await self.session.commit()
 
         try:
+            # Notify the gateway-main agent about cleanup for board-scoped deletes.
+            # Skip when deleting the gateway-main agent itself.
+            if gateway is None or client_config is None or agent.board_id is None:
+                raise ValueError("skip main agent cleanup notification")
             main_session = GatewayAgentIdentity.session_key(gateway)
             if main_session and workspace_path:
                 cleanup_message = (
