@@ -550,6 +550,23 @@ async def update_agent_soul(
     return OkResponse()
 
 
+@router.delete("/boards/{board_id}/agents/{agent_id}", response_model=OkResponse)
+async def delete_board_agent(
+    agent_id: str,
+    board: Board = BOARD_DEP,
+    session: AsyncSession = SESSION_DEP,
+    agent_ctx: AgentAuthContext = AGENT_CTX_DEP,
+) -> OkResponse:
+    """Delete a board agent as the board lead."""
+    _guard_board_access(agent_ctx, board)
+    _require_board_lead(agent_ctx)
+    service = AgentLifecycleService(session)
+    return await service.delete_agent_as_lead(
+        agent_id=agent_id,
+        actor_agent=agent_ctx.agent,
+    )
+
+
 @router.post(
     "/boards/{board_id}/gateway/main/ask-user",
     response_model=GatewayMainAskUserResponse,

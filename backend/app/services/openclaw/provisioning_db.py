@@ -1658,7 +1658,38 @@ class AgentLifecycleService(OpenClawDBService):
         if agent is None:
             return OkResponse()
         await self.require_agent_access(agent=agent, ctx=ctx, write=True)
+        return await self._delete_agent_record(agent=agent)
 
+    async def delete_agent_as_lead(
+        self,
+        *,
+        agent_id: str,
+        actor_agent: Agent,
+    ) -> OkResponse:
+        """Delete a board-scoped agent as the board lead."""
+        self.logger.log(TRACE_LEVEL, "agent.delete.lead.start agent_id=%s", agent_id)
+        lead = OpenClawAuthorizationPolicy.require_board_lead_actor(
+            actor_agent=actor_agent,
+            detail="Only board leads can delete agents",
+        )
+        agent = await Agent.objects.by_id(agent_id).first(self.session)
+        if agent is None:
+            return OkResponse()
+        if agent.board_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Board leads cannot delete gateway main agents",
+            )
+        board = await self.require_board(lead.board_id)
+        OpenClawAuthorizationPolicy.require_board_agent_target(target=agent, board=board)
+        if agent.is_board_lead:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Board leads cannot delete lead agents",
+            )
+        return await self._delete_agent_record(agent=agent)
+
+    async def _delete_agent_record(self, *, agent: Agent) -> OkResponse:
         gateway: Gateway | None = None
         client_config: GatewayClientConfig | None = None
         workspace_path: str | None = None
@@ -1772,5 +1803,5 @@ class AgentLifecycleService(OpenClawDBService):
                 )
         except (OSError, OpenClawGatewayError, ValueError):
             pass
-        self.logger.info("agent.delete.success agent_id=%s", agent_id)
+        self.logger.info("agent.delete.success agent_id=%s", agent.id)
         return OkResponse()
