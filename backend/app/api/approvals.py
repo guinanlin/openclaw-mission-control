@@ -30,8 +30,10 @@ from app.schemas.approvals import ApprovalCreate, ApprovalRead, ApprovalStatus, 
 from app.schemas.pagination import DefaultLimitOffsetPage
 from app.services.activity_log import record_activity
 from app.services.approval_task_links import (
+    lock_tasks_for_approval,
     load_task_ids_by_approval,
     normalize_task_ids,
+    pending_approval_conflicts_by_task,
     replace_approval_task_links,
     task_counts_for_board,
 )
@@ -112,6 +114,44 @@ async def _approval_reads(
 
 def _serialize_approval(approval: ApprovalRead) -> dict[str, object]:
     return approval.model_dump(mode="json")
+
+
+def _pending_conflict_detail(conflicts: dict[UUID, UUID]) -> dict[str, object]:
+    ordered = sorted(conflicts.items(), key=lambda item: str(item[0]))
+    return {
+        "message": "Each task can have only one pending approval.",
+        "conflicts": [
+            {
+                "task_id": str(task_id),
+                "approval_id": str(approval_id),
+            }
+            for task_id, approval_id in ordered
+        ],
+    }
+
+
+async def _ensure_no_pending_approval_conflicts(
+    session: AsyncSession,
+    *,
+    board_id: UUID,
+    task_ids: Sequence[UUID],
+    exclude_approval_id: UUID | None = None,
+) -> None:
+    normalized_task_ids = list({*task_ids})
+    if not normalized_task_ids:
+        return
+    await lock_tasks_for_approval(session, task_ids=normalized_task_ids)
+    conflicts = await pending_approval_conflicts_by_task(
+        session,
+        board_id=board_id,
+        task_ids=normalized_task_ids,
+        exclude_approval_id=exclude_approval_id,
+    )
+    if conflicts:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=_pending_conflict_detail(conflicts),
+        )
 
 
 def _approval_resolution_message(
@@ -324,6 +364,12 @@ async def create_approval(
         payload=payload.payload,
     )
     task_id = task_ids[0] if task_ids else None
+    if payload.status == "pending":
+        await _ensure_no_pending_approval_conflicts(
+            session,
+            board_id=board.id,
+            task_ids=task_ids,
+        )
     approval = Approval(
         board_id=board.id,
         task_id=task_id,
@@ -360,7 +406,19 @@ async def update_approval(
     updates = payload.model_dump(exclude_unset=True)
     prior_status = approval.status
     if "status" in updates:
-        approval.status = updates["status"]
+        target_status = updates["status"]
+        if target_status == "pending" and prior_status != "pending":
+            task_ids_by_approval = await load_task_ids_by_approval(session, approval_ids=[approval.id])
+            approval_task_ids = task_ids_by_approval.get(approval.id)
+            if not approval_task_ids and approval.task_id is not None:
+                approval_task_ids = [approval.task_id]
+            await _ensure_no_pending_approval_conflicts(
+                session,
+                board_id=board.id,
+                task_ids=approval_task_ids or [],
+                exclude_approval_id=approval.id,
+            )
+        approval.status = target_status
         if approval.status != "pending":
             approval.resolved_at = utcnow()
     session.add(approval)
