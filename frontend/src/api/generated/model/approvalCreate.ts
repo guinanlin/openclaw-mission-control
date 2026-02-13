@@ -19,6 +19,7 @@ export interface ApprovalCreate {
    * @maximum 100
    */
   confidence: number;
+  lead_reasoning?: string | null;
   payload?: ApprovalCreatePayload;
   rubric_scores?: ApprovalCreateRubricScores;
   status?: ApprovalCreateStatus;

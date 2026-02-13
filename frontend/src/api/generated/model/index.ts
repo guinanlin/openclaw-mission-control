@@ -114,6 +114,7 @@ export * from "./getSessionHistoryApiV1GatewaysSessionsSessionIdHistoryGetParams
 export * from "./healthHealthGet200";
 export * from "./healthzHealthzGet200";
 export * from "./hTTPValidationError";
+export * from "./installMarketplaceSkillApiV1SkillsMarketplaceSkillIdInstallPostParams";
 export * from "./limitOffsetPageTypeVarCustomizedActivityEventRead";
 export * from "./limitOffsetPageTypeVarCustomizedActivityTaskCommentFeedItemRead";
 export * from "./limitOffsetPageTypeVarCustomizedAgentRead";
@@ -146,6 +147,7 @@ export * from "./listBoardWebhookPayloadsApiV1BoardsBoardIdWebhooksWebhookIdPayl
 export * from "./listBoardWebhooksApiV1BoardsBoardIdWebhooksGetParams";
 export * from "./listGatewaysApiV1GatewaysGetParams";
 export * from "./listGatewaySessionsApiV1GatewaysSessionsGetParams";
+export * from "./listMarketplaceSkillsApiV1SkillsMarketplaceGetParams";
 export * from "./listOrgInvitesApiV1OrganizationsMeInvitesGetParams";
 export * from "./listOrgMembersApiV1OrganizationsMeMembersGetParams";
 export * from "./listTagsApiV1TagsGetParams";
@@ -154,6 +156,10 @@ export * from "./listTaskCommentsApiV1AgentBoardsBoardIdTasksTaskIdCommentsGetPa
 export * from "./listTaskCommentsApiV1BoardsBoardIdTasksTaskIdCommentsGetParams";
 export * from "./listTasksApiV1AgentBoardsBoardIdTasksGetParams";
 export * from "./listTasksApiV1BoardsBoardIdTasksGetParams";
+export * from "./marketplaceSkillActionResponse";
+export * from "./marketplaceSkillCardRead";
+export * from "./marketplaceSkillCreate";
+export * from "./marketplaceSkillRead";
 export * from "./okResponse";
 export * from "./organizationActiveUpdate";
 export * from "./organizationBoardAccessRead";
@@ -207,6 +213,7 @@ export * from "./taskReadCustomFieldValues";
 export * from "./taskReadStatus";
 export * from "./taskUpdate";
 export * from "./taskUpdateCustomFieldValues";
+export * from "./uninstallMarketplaceSkillApiV1SkillsMarketplaceSkillIdUninstallPostParams";
 export * from "./updateAgentApiV1AgentsAgentIdPatchParams";
 export * from "./userRead";
 export * from "./userUpdate";
