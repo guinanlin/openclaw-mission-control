@@ -1782,12 +1782,23 @@ def _validate_lead_update_request(update: _TaskUpdateInput) -> None:
         "custom_field_values",
     }
     requested_fields = _lead_requested_fields(update)
-    if update.comment is not None or not requested_fields.issubset(allowed_fields):
+    if update.comment is not None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
-                "Board leads can only assign/unassign tasks, update "
-                "dependencies/custom fields, or resolve review tasks."
+                "Lead comment gate failed: board leads cannot include `comment` in task PATCH. "
+                "Use the task comments endpoint instead."
+            ),
+        )
+    disallowed_fields = requested_fields - allowed_fields
+    if disallowed_fields:
+        disallowed = ", ".join(sorted(disallowed_fields))
+        allowed = ", ".join(sorted(allowed_fields))
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Lead field gate failed: unsupported fields for board leads: "
+                f"{disallowed}. Allowed fields: {allowed}."
             ),
         )
 
@@ -1877,13 +1888,19 @@ def _lead_apply_status(update: _TaskUpdateInput) -> None:
     if update.task.status != "review":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=("Board leads can only change status when a task is " "in review."),
+            detail=(
+                "Lead status gate failed: board leads can only change status when the current "
+                f"task status is `review` (current: `{update.task.status}`)."
+            ),
         )
     target_status = _required_status_value(update.updates["status"])
     if target_status not in {"done", "inbox"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=("Board leads can only move review tasks to done " "or inbox."),
+            detail=(
+                "Lead status target gate failed: review tasks can only move to `done` or "
+                f"`inbox` (requested: `{target_status}`)."
+            ),
         )
     if target_status == "inbox":
         update.task.assigned_agent_id = None
