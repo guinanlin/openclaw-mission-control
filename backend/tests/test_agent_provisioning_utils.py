@@ -10,6 +10,7 @@ import pytest
 
 import app.services.openclaw.internal.agent_key as agent_key_mod
 import app.services.openclaw.provisioning as agent_provisioning
+from app.services.souls_directory import SoulRef
 from app.services.openclaw.provisioning_db import AgentLifecycleService
 from app.services.openclaw.shared import GatewayAgentIdentity
 
@@ -355,6 +356,68 @@ def test_is_missing_agent_error_matches_gateway_agent_not_found() -> None:
     assert not agent_provisioning._is_missing_agent_error(
         agent_provisioning.OpenClawGatewayError("dial tcp: connection refused"),
     )
+
+
+def test_select_role_soul_ref_prefers_exact_slug() -> None:
+    refs = [
+        SoulRef(handle="team", slug="security"),
+        SoulRef(handle="team", slug="security-auditor"),
+        SoulRef(handle="team", slug="security-auditor-pro"),
+    ]
+
+    selected = agent_provisioning._select_role_soul_ref(refs, role="Security Auditor")
+
+    assert selected is not None
+    assert selected.slug == "security-auditor"
+
+
+@pytest.mark.asyncio
+async def test_resolve_role_soul_markdown_returns_best_effort(monkeypatch: pytest.MonkeyPatch) -> None:
+    refs = [SoulRef(handle="team", slug="data-scientist")]
+
+    async def _fake_list_refs() -> list[SoulRef]:
+        return refs
+
+    async def _fake_fetch(*, handle: str, slug: str, client=None) -> str:
+        _ = client
+        assert handle == "team"
+        assert slug == "data-scientist"
+        return "# SOUL.md - Data Scientist"
+
+    monkeypatch.setattr(
+        agent_provisioning.souls_directory,
+        "list_souls_directory_refs",
+        _fake_list_refs,
+    )
+    monkeypatch.setattr(
+        agent_provisioning.souls_directory,
+        "fetch_soul_markdown",
+        _fake_fetch,
+    )
+
+    markdown, source_url = await agent_provisioning._resolve_role_soul_markdown("Data Scientist")
+
+    assert markdown == "# SOUL.md - Data Scientist"
+    assert source_url == "https://souls.directory/souls/team/data-scientist"
+
+
+@pytest.mark.asyncio
+async def test_resolve_role_soul_markdown_returns_empty_on_directory_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _fake_list_refs() -> list[SoulRef]:
+        raise RuntimeError("network down")
+
+    monkeypatch.setattr(
+        agent_provisioning.souls_directory,
+        "list_souls_directory_refs",
+        _fake_list_refs,
+    )
+
+    markdown, source_url = await agent_provisioning._resolve_role_soul_markdown("DevOps Engineer")
+
+    assert markdown == ""
+    assert source_url == ""
 
 
 @pytest.mark.asyncio

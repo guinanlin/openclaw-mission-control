@@ -1,4 +1,5 @@
 # TOOLS.md
+{% set is_lead = (is_board_lead | default(false) | string | lower) in ["true", "1", "yes"] %}
 
 - `BASE_URL={{ base_url }}`
 - `AUTH_TOKEN={{ auth_token }}`
@@ -9,6 +10,12 @@
 - `WORKSPACE_PATH={{ workspace_path }}`
 - Required tools: `curl`, `jq`
 
+{% if is_lead %}
+{% set role_tag = "agent-lead" %}
+{% else %}
+{% set role_tag = "agent-worker" %}
+{% endif %}
+
 ## OpenAPI refresh (run before API-heavy work)
 
 ```bash
@@ -17,17 +24,17 @@ curl -fsS "{{ base_url }}/openapi.json" -o api/openapi.json
 jq -r '
   .paths | to_entries[] as $p
   | $p.value | to_entries[]
-  | select((.value.tags // []) | index("agent-lead"))
+  | select((.value.tags // []) | index("{{ role_tag }}"))
   | "\(.key|ascii_upcase)\t\($p.key)\t\(.value.operationId // "-")"
-' api/openapi.json | sort > api/lead-operations.tsv
+' api/openapi.json | sort > api/{{ role_tag }}-operations.tsv
 ```
 
 ## API source of truth
 - `api/openapi.json`
-- `api/lead-operations.tsv`
+- `api/{{ role_tag }}-operations.tsv`
 
 ## API discovery policy
-- Use only operations tagged `agent-lead`.
+- Use operations tagged `{{ role_tag }}`.
 - Derive method/path/schema from `api/openapi.json` at runtime.
 - Do not hardcode endpoint paths in markdown files.
 

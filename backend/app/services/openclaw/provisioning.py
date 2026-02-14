@@ -8,6 +8,7 @@ DB-backed workflows (template sync, lead-agent record creation) live in
 from __future__ import annotations
 
 import json
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,7 +20,9 @@ from app.core.config import settings
 from app.models.agents import Agent
 from app.models.boards import Board
 from app.models.gateways import Gateway
+from app.services import souls_directory
 from app.services.openclaw.constants import (
+    BOARD_SHARED_TEMPLATE_MAP,
     DEFAULT_CHANNEL_HEARTBEAT_VISIBILITY,
     DEFAULT_GATEWAY_FILES,
     DEFAULT_HEARTBEAT_CONFIG,
@@ -58,6 +61,10 @@ class ProvisionOptions:
 
     action: str = "provision"
     force_bootstrap: bool = False
+
+
+_ROLE_SOUL_MAX_CHARS = 24_000
+_ROLE_SOUL_WORD_RE = re.compile(r"[a-z0-9]+")
 
 
 def _is_missing_session_error(exc: OpenClawGatewayError) -> bool:
@@ -204,6 +211,72 @@ def _identity_context(agent: Agent) -> dict[str, str]:
     return {**identity_context, **extra_identity_context}
 
 
+def _role_slug(role: str) -> str:
+    tokens = _ROLE_SOUL_WORD_RE.findall(role.strip().lower())
+    return "-".join(tokens)
+
+
+def _select_role_soul_ref(
+    refs: list[souls_directory.SoulRef],
+    *,
+    role: str,
+) -> souls_directory.SoulRef | None:
+    role_slug = _role_slug(role)
+    if not role_slug:
+        return None
+
+    exact_slug = next((ref for ref in refs if ref.slug.lower() == role_slug), None)
+    if exact_slug is not None:
+        return exact_slug
+
+    prefix_matches = [ref for ref in refs if ref.slug.lower().startswith(f"{role_slug}-")]
+    if prefix_matches:
+        return sorted(prefix_matches, key=lambda ref: len(ref.slug))[0]
+
+    contains_matches = [ref for ref in refs if role_slug in ref.slug.lower()]
+    if contains_matches:
+        return sorted(contains_matches, key=lambda ref: len(ref.slug))[0]
+
+    role_tokens = [token for token in role_slug.split("-") if token]
+    if len(role_tokens) < 2:
+        return None
+
+    scored: list[tuple[int, souls_directory.SoulRef]] = []
+    for ref in refs:
+        haystack = f"{ref.handle}-{ref.slug}".lower()
+        token_hits = sum(1 for token in role_tokens if token in haystack)
+        if token_hits >= 2:
+            scored.append((token_hits, ref))
+    if not scored:
+        return None
+
+    scored.sort(key=lambda item: (-item[0], len(item[1].slug)))
+    return scored[0][1]
+
+
+async def _resolve_role_soul_markdown(role: str) -> tuple[str, str]:
+    if not role.strip():
+        return "", ""
+    try:
+        refs = await souls_directory.list_souls_directory_refs()
+        matched_ref = _select_role_soul_ref(refs, role=role)
+        if matched_ref is None:
+            return "", ""
+        content = await souls_directory.fetch_soul_markdown(
+            handle=matched_ref.handle,
+            slug=matched_ref.slug,
+        )
+        normalized = content.strip()
+        if not normalized:
+            return "", ""
+        if len(normalized) > _ROLE_SOUL_MAX_CHARS:
+            normalized = normalized[:_ROLE_SOUL_MAX_CHARS]
+        return normalized, matched_ref.page_url
+    except Exception:
+        # Best effort only. Provisioning must remain robust even if directory is unavailable.
+        return "", ""
+
+
 def _build_context(
     agent: Agent,
     board: Board,
@@ -240,6 +313,7 @@ def _build_context(
         "board_rule_only_lead_can_change_status": str(board.only_lead_can_change_status).lower(),
         "board_rule_max_agents": str(board.max_agents),
         "is_board_lead": str(agent.is_board_lead).lower(),
+        "is_main_agent": "false",
         "session_key": session_key,
         "workspace_path": workspace_path,
         "base_url": base_url,
@@ -263,6 +337,7 @@ def _build_main_context(
     return {
         "agent_name": agent.name,
         "agent_id": str(agent.id),
+        "is_main_agent": "true",
         "session_key": agent.openclaw_session_id or "",
         "base_url": base_url,
         "auth_token": auth_token,
@@ -322,6 +397,9 @@ def _render_agent_files(
         template_name = (
             template_overrides[name] if template_overrides and name in template_overrides else name
         )
+        if template_name == "SOUL.md":
+            # Use shared Jinja soul template as the default implementation.
+            template_name = "BOARD_SOUL.md.j2"
         path = _templates_root() / template_name
         if not path.exists():
             msg = f"Missing template file: {template_name}"
@@ -599,6 +677,15 @@ class BaseAgentLifecycleManager(ABC):
     ) -> dict[str, str]:
         raise NotImplementedError
 
+    async def _augment_context(
+        self,
+        *,
+        agent: Agent,
+        context: dict[str, str],
+    ) -> dict[str, str]:
+        _ = agent
+        return context
+
     def _template_overrides(self, agent: Agent) -> dict[str, str] | None:
         return None
 
@@ -728,6 +815,7 @@ class BaseAgentLifecycleManager(ABC):
             user=user,
             board=board,
         )
+        context = await self._augment_context(agent=agent, context=context)
         # Always attempt to sync Mission Control's full template set.
         # Do not introspect gateway defaults (avoids touching gateway "main" agent state).
         file_names = self._file_names(agent)
@@ -774,10 +862,29 @@ class BoardAgentLifecycleManager(BaseAgentLifecycleManager):
             raise ValueError(msg)
         return _build_context(agent, board, self._gateway, auth_token, user)
 
-    def _template_overrides(self, agent: Agent) -> dict[str, str] | None:
+    async def _augment_context(
+        self,
+        *,
+        agent: Agent,
+        context: dict[str, str],
+    ) -> dict[str, str]:
+        context = dict(context)
         if agent.is_board_lead:
-            return LEAD_TEMPLATE_MAP
-        return None
+            context["directory_role_soul_markdown"] = ""
+            context["directory_role_soul_source_url"] = ""
+            return context
+
+        role = (context.get("identity_role") or "").strip()
+        markdown, source_url = await _resolve_role_soul_markdown(role)
+        context["directory_role_soul_markdown"] = markdown
+        context["directory_role_soul_source_url"] = source_url
+        return context
+
+    def _template_overrides(self, agent: Agent) -> dict[str, str] | None:
+        overrides = dict(BOARD_SHARED_TEMPLATE_MAP)
+        if agent.is_board_lead:
+            overrides.update(LEAD_TEMPLATE_MAP)
+        return overrides
 
     def _file_names(self, agent: Agent) -> set[str]:
         if agent.is_board_lead:
@@ -797,8 +904,6 @@ class BoardAgentLifecycleManager(BaseAgentLifecycleManager):
                 "USER.md",
                 "ROUTING.md",
                 "LEARNINGS.md",
-                "BOOTSTRAP.md",
-                "BOOT.md",
                 "ROLE.md",
                 "WORKFLOW.md",
                 "STATUS.md",
@@ -876,8 +981,7 @@ def _should_include_bootstrap(
 def _wakeup_text(agent: Agent, *, verb: str) -> str:
     return (
         f"Hello {agent.name}. Your workspace has been {verb}.\n\n"
-        "Start the agent, read AGENTS.md, and if BOOTSTRAP.md exists run it once "
-        "then delete it. Begin heartbeats after startup."
+        "Start the agent, read AGENTS.md, and begin heartbeats after startup."
     )
 
 

@@ -44,7 +44,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--force-bootstrap",
         action="store_true",
-        help="Force BOOTSTRAP.md to be provisioned during sync",
+        help="Force BOOTSTRAP.md to be rendered during update sync",
     )
     return parser.parse_args()
 

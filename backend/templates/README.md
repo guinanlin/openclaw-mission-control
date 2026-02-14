@@ -65,9 +65,13 @@ Board-lead file contract is defined in:
 
 - `backend/app/services/openclaw/constants.py` (`LEAD_GATEWAY_FILES`)
 
-Template mapping for board leads is defined in:
+Lead-only override mapping (when needed) is defined in:
 
 - `backend/app/services/openclaw/constants.py` (`LEAD_TEMPLATE_MAP`)
+
+Shared board-agent mapping (lead + non-lead) is defined in:
+
+- `backend/app/services/openclaw/constants.py` (`BOARD_SHARED_TEMPLATE_MAP`)
 
 Main-agent template mapping is defined in:
 
@@ -86,23 +90,21 @@ Lead-only stale template files are cleaned up during sync by:
 
 ## HEARTBEAT.md selection logic
 
-`HEARTBEAT.md` is selected dynamically:
+All agent types (main + board lead + board non-lead) render `HEARTBEAT.md` from:
 
-- Board lead -> `HEARTBEAT_LEAD.md`
-- Non-lead agent -> `HEARTBEAT_AGENT.md`
+- `BOARD_HEARTBEAT.md.j2` via `BOARD_SHARED_TEMPLATE_MAP`
 
-See:
-
-- `HEARTBEAT_LEAD_TEMPLATE`, `HEARTBEAT_AGENT_TEMPLATE` in constants
-- `_heartbeat_template_name()` in provisioning
+Role-specific behavior is controlled inside that template with:
+- `is_main_agent`
+- `is_board_lead`
 
 ## OpenAPI refresh location
 
 Lead OpenAPI download/index generation is intentionally documented in:
 
-- `LEAD_TOOLS.md`
+- `BOARD_TOOLS.md.j2`
 
-This avoids relying on BOOT hook execution to populate `api/openapi.json`.
+This avoids relying on startup hooks to populate `api/openapi.json`.
 
 ## Template variables reference
 

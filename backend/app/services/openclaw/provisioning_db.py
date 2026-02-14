@@ -29,6 +29,7 @@ from app.db.pagination import paginate
 from app.db.session import async_session_maker
 from app.models.activity_events import ActivityEvent
 from app.models.agents import Agent
+from app.models.approvals import Approval
 from app.models.board_memory import BoardMemory
 from app.models.boards import Board
 from app.models.gateways import Gateway
@@ -1816,6 +1817,13 @@ class AgentLifecycleService(OpenClawDBService):
             self.session,
             ActivityEvent,
             col(ActivityEvent.agent_id) == agent.id,
+            agent_id=None,
+            commit=False,
+        )
+        await crud.update_where(
+            self.session,
+            Approval,
+            col(Approval.agent_id) == agent.id,
             agent_id=None,
             commit=False,
         )

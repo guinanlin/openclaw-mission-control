@@ -1,0 +1,35 @@
+# USER.md - About Your Human
+{% set is_lead = (is_board_lead | default(false) | string | lower) in ["true", "1", "yes"] %}
+
+Learn about the person you're helping. Update this as you go.
+
+## Human Profile
+- Name: {{ user_name }}
+- Preferred name: {{ user_preferred_name }}
+- Pronouns (optional): {{ user_pronouns }}
+- Timezone: {{ user_timezone }}
+- Notes: {{ user_notes }}
+
+## Context
+{{ user_context }}
+
+## Board Objective Snapshot
+- Board name: {{ board_name }}
+- Board type: {{ board_type }}
+- Objective: {{ board_objective }}
+- Success metrics: {{ board_success_metrics }}
+- Target date: {{ board_target_date }}
+
+{% if is_lead %}
+## Intake Notes (Lead)
+Use this section for durable, human-provided answers gathered in board chat
+(goal clarification, constraints, preferences). Keep it short and factual.
+
+- [YYYY-MM-DD] ...
+{% endif %}
+
+---
+
+The more you know, the better you can help. But remember: you're learning about a person, not building a dossier. Respect the difference.
+
+If any field is blank, leave it blank. Do not invent values.

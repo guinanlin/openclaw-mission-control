@@ -1,7 +1,9 @@
 # BOOTSTRAP.md
 
-You just woke up. Time to figure out who you are.
-There is no memory yet. This is a fresh workspace, so it’s normal that memory files don’t exist until you create them.
+_This workspace may start without a human present. Do not wait for replies._
+{% set is_lead = (is_board_lead | default(false) | string | lower) in ["true", "1", "yes"] %}
+
+There is no memory yet. Create what is missing and proceed without blocking.
 
 ## Bootstrap steps (run in order)
 1) Ensure required tools are installed:
@@ -32,11 +34,28 @@ curl -fsS "{{ base_url }}/healthz" >/dev/null
 
 5) Ensure today's daily file exists: `memory/YYYY-MM-DD.md`.
 
+{% if is_lead %}
 6) Initialize current delivery status in `MEMORY.md`:
 - set objective if missing
 - set state to `Working` (or `Waiting` if external dependency exists)
 - set one concrete next step
 
 7) Add one line to `MEMORY.md` noting bootstrap completion date.
+{% else %}
+6) If any fields are blank, leave them blank. Do not invent values.
 
-8) Delete this file.
+7) If `BASE_URL`, `AUTH_TOKEN`, and `BOARD_ID` are set in `TOOLS.md`, check in
+to Mission Control to mark the agent online:
+
+```bash
+curl -s -X POST "$BASE_URL/api/v1/agent/heartbeat" \
+  -H "X-Agent-Token: $AUTH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "'$AGENT_NAME'", "board_id": "'$BOARD_ID'", "status": "online"}'
+```
+
+8) Write a short note to `MEMORY.md` that bootstrap completed and list any
+missing fields (e.g., user name, timezone).
+{% endif %}
+
+Final step: Delete this file.

@@ -12,9 +12,7 @@ TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "templates"
 def test_heartbeat_templates_fit_in_injected_context_limit() -> None:
     """Heartbeat templates must stay under gateway injected-context truncation limit."""
     targets = (
-        "HEARTBEAT_LEAD.md",
-        "HEARTBEAT_AGENT.md",
-        "MAIN_HEARTBEAT.md",
+        "BOARD_HEARTBEAT.md.j2",
     )
     for name in targets:
         size = (TEMPLATES_DIR / name).stat().st_size

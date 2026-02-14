@@ -55,14 +55,10 @@ DEFAULT_GATEWAY_FILES = frozenset(
     {
         "AGENTS.md",
         "SOUL.md",
-        "TASK_SOUL.md",
-        "AUTONOMY.md",
         "TOOLS.md",
         "IDENTITY.md",
         "USER.md",
         "HEARTBEAT.md",
-        "BOOT.md",
-        "BOOTSTRAP.md",
         "MEMORY.md",
     },
 )
@@ -88,30 +84,33 @@ LEAD_GATEWAY_FILES = frozenset(
 # Examples:
 # - USER.md: human-provided context + lead intake notes
 # - MEMORY.md: curated long-term memory (consolidated)
-PRESERVE_AGENT_EDITABLE_FILES = frozenset({"USER.md", "MEMORY.md", "TASK_SOUL.md"})
+PRESERVE_AGENT_EDITABLE_FILES = frozenset({"USER.md", "MEMORY.md"})
 
-HEARTBEAT_LEAD_TEMPLATE = "HEARTBEAT_LEAD.md"
-HEARTBEAT_AGENT_TEMPLATE = "HEARTBEAT_AGENT.md"
+HEARTBEAT_LEAD_TEMPLATE = "BOARD_HEARTBEAT.md.j2"
+HEARTBEAT_AGENT_TEMPLATE = "BOARD_HEARTBEAT.md.j2"
 SESSION_KEY_PARTS_MIN = 2
 _SESSION_KEY_PARTS_MIN = SESSION_KEY_PARTS_MIN
 
 MAIN_TEMPLATE_MAP = {
-    "AGENTS.md": "MAIN_AGENTS.md",
-    "HEARTBEAT.md": "MAIN_HEARTBEAT.md",
+    "AGENTS.md": "BOARD_AGENTS.md.j2",
+    "SOUL.md": "BOARD_SOUL.md.j2",
+    "HEARTBEAT.md": "BOARD_HEARTBEAT.md.j2",
     "USER.md": "MAIN_USER.md",
-    "BOOT.md": "MAIN_BOOT.md",
     "TOOLS.md": "MAIN_TOOLS.md",
 }
 
+BOARD_SHARED_TEMPLATE_MAP = {
+    "AGENTS.md": "BOARD_AGENTS.md.j2",
+    "BOOTSTRAP.md": "BOARD_BOOTSTRAP.md.j2",
+    "IDENTITY.md": "BOARD_IDENTITY.md.j2",
+    "SOUL.md": "BOARD_SOUL.md.j2",
+    "MEMORY.md": "BOARD_MEMORY.md.j2",
+    "HEARTBEAT.md": "BOARD_HEARTBEAT.md.j2",
+    "USER.md": "BOARD_USER.md.j2",
+    "TOOLS.md": "BOARD_TOOLS.md.j2",
+}
+
 LEAD_TEMPLATE_MAP = {
-    "AGENTS.md": "LEAD_AGENTS.md",
-    "BOOTSTRAP.md": "LEAD_BOOTSTRAP.md",
-    "IDENTITY.md": "LEAD_IDENTITY.md",
-    "SOUL.md": "LEAD_SOUL.md",
-    "USER.md": "LEAD_USER.md",
-    "MEMORY.md": "LEAD_MEMORY.md",
-    "TOOLS.md": "LEAD_TOOLS.md",
-    "HEARTBEAT.md": "HEARTBEAT_LEAD.md",
 }
 
 _TOOLS_KV_RE = re.compile(r"^(?P<key>[A-Z0-9_]+)=(?P<value>.*)$")
