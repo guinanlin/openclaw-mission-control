@@ -49,6 +49,8 @@ type BoardApprovalsPanelProps = {
   onDecision?: (approvalId: string, status: "approved" | "rejected") => void;
   scrollable?: boolean;
   boardLabelById?: Record<string, string>;
+  /** Optional hint shown in the empty state (e.g. link to board-specific approvals). */
+  emptyStateHint?: string | null;
 };
 
 const formatTimestamp = (value?: string | null) => {
@@ -398,6 +400,7 @@ export function BoardApprovalsPanel({
   onDecision,
   scrollable = false,
   boardLabelById,
+  emptyStateHint,
 }: BoardApprovalsPanelProps) {
   const { isSignedIn } = useAuth();
   const queryClient = useQueryClient();
@@ -573,6 +576,11 @@ export function BoardApprovalsPanel({
               No approvals to review right now. New approvals will show up here
               as soon as they arrive.
             </p>
+            {emptyStateHint ? (
+              <p className="mt-3 max-w-md text-xs text-slate-500">
+                {emptyStateHint}
+              </p>
+            ) : null}
           </div>
         </div>
       ) : (

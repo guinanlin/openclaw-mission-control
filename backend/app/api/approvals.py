@@ -17,6 +17,7 @@ from app.api.deps import (
     ActorContext,
     get_board_for_actor_read,
     get_board_for_actor_write,
+    get_board_for_user_read,
     get_board_for_user_write,
     require_admin_or_agent,
 )
@@ -55,6 +56,7 @@ STREAM_POLL_SECONDS = 2
 STATUS_FILTER_QUERY = Query(default=None, alias="status")
 SINCE_QUERY = Query(default=None)
 BOARD_READ_DEP = Depends(get_board_for_actor_read)
+BOARD_USER_READ_DEP = Depends(get_board_for_user_read)
 BOARD_WRITE_DEP = Depends(get_board_for_actor_write)
 BOARD_USER_WRITE_DEP = Depends(get_board_for_user_write)
 SESSION_DEP = Depends(get_session)
@@ -299,9 +301,8 @@ async def _fetch_approval_events(
 @router.get("", response_model=DefaultLimitOffsetPage[ApprovalRead])
 async def list_approvals(
     status_filter: ApprovalStatus | None = STATUS_FILTER_QUERY,
-    board: Board = BOARD_READ_DEP,
+    board: Board = BOARD_USER_READ_DEP,
     session: AsyncSession = SESSION_DEP,
-    _actor: ActorContext = ACTOR_DEP,
 ) -> LimitOffsetPage[ApprovalRead]:
     """List approvals for a board, optionally filtering by status."""
     statement = Approval.objects.filter_by(board_id=board.id)

@@ -23,6 +23,7 @@ class Gateway(QueryModel, table=True):
     name: str
     url: str
     token: str | None = Field(default=None)
+    password: str | None = Field(default=None)
     workspace_root: str
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)

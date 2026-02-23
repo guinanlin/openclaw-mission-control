@@ -41,3 +41,10 @@ COPY --from=builder /app/next.config.ts ./next.config.ts
 EXPOSE 3000
 
 CMD ["npm", "run", "start"]
+
+# --- dev (for compose.dev.yml: mount source + run dev server with hot reload) ---
+FROM deps AS dev
+WORKDIR /app
+COPY . .
+EXPOSE 3000
+CMD ["npm", "run", "dev"]

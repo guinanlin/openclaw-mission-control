@@ -36,6 +36,7 @@ from app.services.openclaw.constants import (
     MAIN_TEMPLATE_MAP,
     PRESERVE_AGENT_EDITABLE_FILES,
 )
+from app.services.openclaw.gateway_resolver import gateway_client_config
 from app.services.openclaw.gateway_rpc import GatewayConfig as GatewayClientConfig
 from app.services.openclaw.gateway_rpc import (
     OpenClawGatewayError,
@@ -969,9 +970,7 @@ def _control_plane_for_gateway(gateway: Gateway) -> OpenClawGatewayControlPlane:
     if not gateway.url:
         msg = "Gateway url is required"
         raise OpenClawGatewayError(msg)
-    return OpenClawGatewayControlPlane(
-        GatewayClientConfig(url=gateway.url, token=gateway.token),
-    )
+    return OpenClawGatewayControlPlane(gateway_client_config(gateway))
 
 
 async def _patch_gateway_agent_heartbeats(
@@ -1099,7 +1098,7 @@ class OpenClawGatewayProvisioner:
         if not wake:
             return
 
-        client_config = GatewayClientConfig(url=gateway.url, token=gateway.token)
+        client_config = gateway_client_config(gateway)
         await ensure_session(session_key, config=client_config, label=agent.name)
         verb = wakeup_verb or ("provisioned" if action == "provision" else "updated")
         await send_message(

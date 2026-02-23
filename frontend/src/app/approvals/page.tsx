@@ -2,6 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
+import Link from "next/link";
 import { useCallback, useMemo } from "react";
 
 import { SignedIn, SignedOut, SignInButton, useAuth } from "@/auth/clerk";
@@ -17,7 +18,8 @@ import type { ApprovalRead, BoardRead } from "@/api/generated/model";
 import { BoardApprovalsPanel } from "@/components/BoardApprovalsPanel";
 import { DashboardSidebar } from "@/components/organisms/DashboardSidebar";
 import { DashboardShell } from "@/components/templates/DashboardShell";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type GlobalApprovalsData = {
   approvals: ApprovalRead[];
@@ -59,9 +61,11 @@ function GlobalApprovalsInner() {
     [boardIdsKey],
   );
 
+  const approvalsQueryEnabled = Boolean(isSignedIn && boards.length > 0);
+
   const approvalsQuery = useQuery<GlobalApprovalsData, ApiError>({
     queryKey: approvalsKey,
-    enabled: Boolean(isSignedIn && boards.length > 0),
+    enabled: approvalsQueryEnabled,
     refetchInterval: 15_000,
     refetchOnMount: "always",
     retry: false,
@@ -125,6 +129,11 @@ function GlobalApprovalsInner() {
   );
   const errorText = approvalsQuery.error?.message ?? null;
 
+  const noBoards =
+    !boardsQuery.isLoading &&
+    boardsQuery.isSuccess &&
+    boards.length === 0;
+
   const handleDecision = useCallback(
     (approvalId: string, status: "approved" | "rejected") => {
       const approval = approvals.find((item) => item.id === approvalId);
@@ -169,15 +178,35 @@ function GlobalApprovalsInner() {
     <main className="flex-1 overflow-y-auto bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="p-6">
         <div className="h-[calc(100vh-160px)] min-h-[520px]">
-          <BoardApprovalsPanel
-            boardId="global"
-            approvals={approvals}
-            isLoading={boardsQuery.isLoading || approvalsQuery.isLoading}
-            error={combinedError}
-            onDecision={handleDecision}
-            scrollable
-            boardLabelById={boardLabelById}
-          />
+          {noBoards ? (
+            <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center">
+              <p className="text-sm font-semibold text-slate-900">
+                No boards
+              </p>
+              <p className="mt-2 max-w-sm text-sm text-slate-500">
+                Open a board first to see approvals. Or go to a board and use the
+                Approvals (shield) button in the toolbar to review that
+                board&apos;s approvals.
+              </p>
+              <Link
+                href="/boards"
+                className={cn(buttonVariants({ variant: "outline" }), "mt-4")}
+              >
+                View boards
+              </Link>
+            </div>
+          ) : (
+            <BoardApprovalsPanel
+              boardId="global"
+              approvals={approvals}
+              isLoading={boardsQuery.isLoading || approvalsQuery.isLoading}
+              error={combinedError}
+              onDecision={handleDecision}
+              scrollable
+              boardLabelById={boardLabelById}
+              emptyStateHint="If you see pending approvals on a board, open that board and use the Approvals (shield) button in the toolbar to review them."
+            />
+          )}
         </div>
       </div>
     </main>

@@ -28,6 +28,7 @@ export default function NewGatewayPage() {
   const [name, setName] = useState("");
   const [gatewayUrl, setGatewayUrl] = useState("");
   const [gatewayToken, setGatewayToken] = useState("");
+  const [gatewayPassword, setGatewayPassword] = useState("");
   const [workspaceRoot, setWorkspaceRoot] = useState(DEFAULT_WORKSPACE_ROOT);
 
   const [gatewayUrlError, setGatewayUrlError] = useState<string | null>(null);
@@ -74,6 +75,7 @@ export default function NewGatewayPage() {
     const { ok, message } = await checkGatewayConnection({
       gatewayUrl,
       gatewayToken,
+      gatewayPassword,
     });
     setGatewayCheckStatus(ok ? "success" : "error");
     setGatewayCheckMessage(message);
@@ -105,6 +107,7 @@ export default function NewGatewayPage() {
         name: name.trim(),
         url: gatewayUrl.trim(),
         token: gatewayToken.trim() || null,
+        password: gatewayPassword.trim() || null,
         workspace_root: workspaceRoot.trim(),
       },
     });
@@ -125,6 +128,7 @@ export default function NewGatewayPage() {
         name={name}
         gatewayUrl={gatewayUrl}
         gatewayToken={gatewayToken}
+        gatewayPassword={gatewayPassword}
         workspaceRoot={workspaceRoot}
         gatewayUrlError={gatewayUrlError}
         gatewayCheckStatus={gatewayCheckStatus}
@@ -148,6 +152,11 @@ export default function NewGatewayPage() {
         }}
         onGatewayTokenChange={(next) => {
           setGatewayToken(next);
+          setGatewayCheckStatus("idle");
+          setGatewayCheckMessage(null);
+        }}
+        onGatewayPasswordChange={(next) => {
+          setGatewayPassword(next);
           setGatewayCheckStatus("idle");
           setGatewayCheckMessage(null);
         }}

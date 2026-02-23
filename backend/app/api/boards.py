@@ -58,22 +58,6 @@ INCLUDE_SELF_QUERY = Query(default=False)
 INCLUDE_DONE_QUERY = Query(default=False)
 PER_BOARD_TASK_LIMIT_QUERY = Query(default=5, ge=0, le=100)
 AGENT_BOARD_ROLE_TAGS = cast("list[str | Enum]", ["agent-lead", "agent-worker"])
-_ERR_GATEWAY_MAIN_AGENT_REQUIRED = (
-    "gateway must have a gateway main agent before boards can be created or updated"
-)
-
-
-async def _require_gateway_main_agent(session: AsyncSession, gateway: Gateway) -> None:
-    main_agent = (
-        await Agent.objects.filter_by(gateway_id=gateway.id)
-        .filter(col(Agent.board_id).is_(None))
-        .first(session)
-    )
-    if main_agent is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=_ERR_GATEWAY_MAIN_AGENT_REQUIRED,
-        )
 
 
 async def _require_gateway(
@@ -93,7 +77,6 @@ async def _require_gateway(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="gateway_id is invalid",
         )
-    await _require_gateway_main_agent(session, gateway)
     return gateway
 
 

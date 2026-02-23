@@ -1,0 +1,50 @@
+# Docker 开发模式：代码卷挂载 + 热重载
+# 本文件只覆盖 backend / frontend 的挂载与命令，db/redis 定义仍在 compose.yml，不会新建。
+#
+# 用法一（推荐）：DB/Redis 已在本项目里跑着时，只起开发用的 backend + frontend + worker
+#   docker compose -f compose.yml -f compose.dev.yml up --build backend frontend webhook-worker
+#   → 会复用已有 db/redis 容器，只启动/重启 backend、frontend、webhook-worker（带热重载）
+#
+# 用法二：从零起全栈（含 db、redis）
+#   docker compose -f compose.yml -f compose.dev.yml up --build
+
+name: openclaw-mission-control
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - path: ./backend/.env
+        required: false
+      - path: ./backend/.env.example
+        required: true
+    volumes:
+      # 挂载源码，改宿主机代码即触发热重载
+      - ./backend/app:/app/app
+      - ./backend/migrations:/app/migrations
+      - ./backend/templates:/app/templates
+      - device_keys:/app/app/services/openclaw/.device-keys
+    command: ["uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    env_file:
+      - path: ./frontend/.env
+        required: false
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_AUTH_MODE: ${NEXT_PUBLIC_AUTH_MODE:-local}
+    volumes:
+      - ./frontend:/app
+      # 避免挂载覆盖容器内 node_modules（否则需在容器内 npm install）
+      - frontend_node_modules:/app/node_modules
+    command: ["sh", "-c", "npm install && npm run dev"]
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+
+volumes:
+  frontend_node_modules:

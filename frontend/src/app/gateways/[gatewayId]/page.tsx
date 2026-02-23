@@ -115,6 +115,7 @@ export default function GatewayDetailPage() {
     ? {
         gateway_url: gateway.url,
         gateway_token: gateway.token ?? undefined,
+        gateway_password: gateway.password ?? undefined,
       }
     : {};
 
@@ -232,6 +233,16 @@ export default function GatewayDetailPage() {
                       {maskToken(gateway.token)}
                     </p>
                   </div>
+                  {gateway.password ? (
+                    <div>
+                      <p className="text-xs uppercase text-slate-400">
+                        Password
+                      </p>
+                      <p className="mt-1 text-sm font-medium text-slate-900">
+                        ••••••••
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
               </div>
 

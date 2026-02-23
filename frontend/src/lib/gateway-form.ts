@@ -24,13 +24,17 @@ export const validateGatewayUrl = (value: string) => {
 export async function checkGatewayConnection(params: {
   gatewayUrl: string;
   gatewayToken: string;
+  gatewayPassword?: string;
 }): Promise<{ ok: boolean; message: string }> {
   try {
     const requestParams: Record<string, string> = {
       gateway_url: params.gatewayUrl.trim(),
     };
-    if (params.gatewayToken.trim()) {
+    if (params.gatewayToken?.trim()) {
       requestParams.gateway_token = params.gatewayToken.trim();
+    }
+    if (params.gatewayPassword?.trim()) {
+      requestParams.gateway_password = params.gatewayPassword.trim();
     }
 
     const response = await gatewaysStatusApiV1GatewaysStatusGet(requestParams);

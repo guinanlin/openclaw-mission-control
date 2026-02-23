@@ -41,12 +41,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body
         className={`${bodyFont.variable} ${headingFont.variable} ${displayFont.variable} min-h-screen bg-app text-strong antialiased`}
       >
-        <AuthProvider>
-          <QueryProvider>
-            <GlobalLoader />
-            {children}
-          </QueryProvider>
-        </AuthProvider>
+        <QueryProvider>
+          <GlobalLoader />
+          <AuthProvider>{children}</AuthProvider>
+        </QueryProvider>
       </body>
     </html>
   );

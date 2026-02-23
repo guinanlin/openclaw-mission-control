@@ -26,10 +26,21 @@ import {
 } from "@/api/generated/default/default";
 import { cn } from "@/lib/utils";
 
+/** Extract board ID from pathname when on a board route (e.g. /boards/xxx or /boards/xxx/approvals). */
+function boardIdFromPathname(pathname: string | null): string | null {
+  if (!pathname) return null;
+  const m = pathname.match(/^\/boards\/([^/]+)/);
+  return m ? m[1] : null;
+}
+
 export function DashboardSidebar() {
   const pathname = usePathname();
   const { isSignedIn } = useAuth();
   const { isAdmin } = useOrganizationMembership(isSignedIn);
+  const currentBoardId = boardIdFromPathname(pathname);
+  const approvalsHref = currentBoardId
+    ? `/boards/${currentBoardId}/approvals`
+    : "/approvals";
   const healthQuery = useHealthzHealthzGet<healthzHealthzGetResponse, ApiError>(
     {
       query: {
@@ -138,10 +149,10 @@ export function DashboardSidebar() {
                 Tags
               </Link>
               <Link
-                href="/approvals"
+                href={approvalsHref}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-700 transition",
-                  pathname.startsWith("/approvals")
+                  pathname === "/approvals" || pathname.endsWith("/approvals")
                     ? "bg-blue-100 text-blue-800 font-medium"
                     : "hover:bg-slate-100",
                 )}

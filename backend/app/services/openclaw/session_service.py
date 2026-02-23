@@ -64,11 +64,13 @@ class GatewaySessionService(OpenClawDBService):
         board_id: str | None,
         gateway_url: str | None,
         gateway_token: str | None,
+        gateway_password: str | None = None,
     ) -> GatewayResolveQuery:
         return GatewayResolveQuery(
             board_id=board_id,
             gateway_url=gateway_url,
             gateway_token=gateway_token,
+            gateway_password=gateway_password,
         )
 
     @staticmethod
@@ -109,6 +111,7 @@ class GatewaySessionService(OpenClawDBService):
                 GatewayClientConfig(
                     url=raw_url,
                     token=(params.gateway_token or "").strip() or None,
+                    password=(params.gateway_password or "").strip() or None,
                 ),
                 None,
             )

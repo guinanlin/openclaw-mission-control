@@ -32,7 +32,8 @@ def gateway_client_config(gateway: Gateway) -> GatewayClientConfig:
             detail="Gateway url is required",
         )
     token = (gateway.token or "").strip() or None
-    return GatewayClientConfig(url=url, token=token)
+    password = (gateway.password or "").strip() or None
+    return GatewayClientConfig(url=url, token=token, password=password)
 
 
 def optional_gateway_client_config(gateway: Gateway | None) -> GatewayClientConfig | None:
@@ -43,7 +44,8 @@ def optional_gateway_client_config(gateway: Gateway | None) -> GatewayClientConf
     if not url:
         return None
     token = (gateway.token or "").strip() or None
-    return GatewayClientConfig(url=url, token=token)
+    password = (gateway.password or "").strip() or None
+    return GatewayClientConfig(url=url, token=token, password=password)
 
 
 def require_gateway_workspace_root(gateway: Gateway) -> str:

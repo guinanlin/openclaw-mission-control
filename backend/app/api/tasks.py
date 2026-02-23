@@ -1995,6 +1995,15 @@ async def _apply_lead_task_update(
 
     await _lead_apply_assignment(session, update=update)
     _lead_apply_status(update)
+    # When lead assigns in inbox, auto-move to in_progress if not blocked
+    if (
+        update.task.status == "inbox"
+        and update.task.assigned_agent_id is not None
+        and not blocked_by
+    ):
+        update.task.status = "in_progress"
+        update.task.in_progress_at = utcnow()
+        update.updates["status"] = "in_progress"
     await _require_no_pending_approval_for_status_change_when_enabled(
         session,
         board_id=update.board_id,
@@ -2133,7 +2142,6 @@ async def _apply_non_lead_agent_task_rules(
             update.task.in_progress_at = None
         elif status_value == "review":
             update.task.previous_in_progress_at = update.task.in_progress_at
-            update.task.assigned_agent_id = None
             update.task.in_progress_at = None
         else:
             update.task.assigned_agent_id = update.actor.agent.id if update.actor.agent else None
@@ -2198,10 +2206,21 @@ async def _apply_admin_task_rules(
             update.task.in_progress_at = None
         elif status_value == "review":
             update.task.previous_in_progress_at = update.task.in_progress_at
-            update.task.assigned_agent_id = None
             update.task.in_progress_at = None
         elif status_value == "in_progress":
             update.task.in_progress_at = utcnow()
+
+    # When only assigning (no explicit status), auto-move from inbox to in_progress if not blocked
+    if (
+        "assigned_agent_id" in update.updates
+        and _optional_assigned_agent_id(update.updates.get("assigned_agent_id"))
+        and "status" not in update.updates
+        and update.task.status == "inbox"
+        and not blocked_ids
+    ):
+        update.task.status = "in_progress"
+        update.task.in_progress_at = utcnow()
+        update.updates["status"] = "in_progress"
 
     assigned_agent_id = _optional_assigned_agent_id(
         update.updates.get("assigned_agent_id"),

@@ -162,7 +162,7 @@ Before execution:
 2) Continue one `in_progress` task; else pick one assigned `inbox` task; else run assist mode.
 3) Refresh task context and plan for the active task.
 4) Execute and post only high-signal task comment updates.
-5) Move to `review` when deliverable and evidence are ready.
+5) **When work is complete** (deliverable and evidence are in task comments): in the **same heartbeat run**, call the task-update API with `status=review` and a short `comment` (e.g. summary or "Ready for review"). The task will then move to Review automatically; do not wait for a later cycle.
 
 ### Assist Mode
 If no active/assigned task:

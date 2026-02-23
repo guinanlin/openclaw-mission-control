@@ -22,3 +22,29 @@ def test_build_connect_params_includes_auth_token_when_provided() -> None:
 
     assert params["auth"] == {"token": "secret-token"}
     assert params["scopes"] == list(GATEWAY_OPERATOR_SCOPES)
+
+
+def test_build_connect_params_includes_auth_password_when_provided() -> None:
+    params = _build_connect_params(
+        GatewayConfig(
+            url="ws://gateway.example/ws",
+            password="secret-password",
+        ),
+    )
+
+    assert params["auth"] == {"password": "secret-password"}
+    assert params["scopes"] == list(GATEWAY_OPERATOR_SCOPES)
+
+
+def test_build_connect_params_includes_both_password_and_token_when_provided() -> None:
+    params = _build_connect_params(
+        GatewayConfig(
+            url="ws://gateway.example/ws",
+            token="secret-token",
+            password="secret-password",
+        ),
+    )
+
+    assert params["auth"]["password"] == "secret-password"
+    assert params["auth"]["token"] == "secret-token"
+    assert params["scopes"] == list(GATEWAY_OPERATOR_SCOPES)

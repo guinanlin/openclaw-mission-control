@@ -1,10 +1,8 @@
 # ruff: noqa: S101
-"""Validation tests for gateway-main-agent requirements on board mutations."""
+"""Validation tests for gateway requirements on board mutations."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -26,66 +24,17 @@ def _gateway(*, organization_id: UUID) -> Gateway:
     )
 
 
-class _FakeAgentQuery:
-    def __init__(self, main_agent: object | None) -> None:
-        self._main_agent = main_agent
-
-    def filter(self, *_args: Any, **_kwargs: Any) -> _FakeAgentQuery:
-        return self
-
-    async def first(self, _session: object) -> object | None:
-        return self._main_agent
-
-
-@dataclass
-class _FakeAgentObjects:
-    main_agent: object | None
-    last_filter_by: dict[str, object] | None = None
-
-    def filter_by(self, **kwargs: object) -> _FakeAgentQuery:
-        self.last_filter_by = kwargs
-        return _FakeAgentQuery(self.main_agent)
-
-
 @pytest.mark.asyncio
-async def test_require_gateway_rejects_when_gateway_has_no_main_agent(
+async def test_require_gateway_returns_gateway_when_valid(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     organization_id = uuid4()
     gateway = _gateway(organization_id=organization_id)
-    fake_objects = _FakeAgentObjects(main_agent=None)
 
     async def _fake_get_by_id(_session: object, _model: object, _gateway_id: object) -> Gateway:
         return gateway
 
     monkeypatch.setattr(boards.crud, "get_by_id", _fake_get_by_id)
-    monkeypatch.setattr(boards.Agent, "objects", fake_objects)
-
-    with pytest.raises(HTTPException) as exc_info:
-        await boards._require_gateway(
-            session=object(),  # type: ignore[arg-type]
-            gateway_id=gateway.id,
-            organization_id=organization_id,
-        )
-
-    assert exc_info.value.status_code == 422
-    assert "gateway main agent" in str(exc_info.value.detail).lower()
-    assert fake_objects.last_filter_by == {"gateway_id": gateway.id}
-
-
-@pytest.mark.asyncio
-async def test_require_gateway_accepts_when_gateway_has_main_agent(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    organization_id = uuid4()
-    gateway = _gateway(organization_id=organization_id)
-    fake_objects = _FakeAgentObjects(main_agent=object())
-
-    async def _fake_get_by_id(_session: object, _model: object, _gateway_id: object) -> Gateway:
-        return gateway
-
-    monkeypatch.setattr(boards.crud, "get_by_id", _fake_get_by_id)
-    monkeypatch.setattr(boards.Agent, "objects", fake_objects)
 
     resolved = await boards._require_gateway(
         session=object(),  # type: ignore[arg-type]
@@ -94,11 +43,10 @@ async def test_require_gateway_accepts_when_gateway_has_main_agent(
     )
 
     assert resolved.id == gateway.id
-    assert fake_objects.last_filter_by == {"gateway_id": gateway.id}
 
 
 @pytest.mark.asyncio
-async def test_apply_board_update_validates_current_gateway_main_agent(
+async def test_apply_board_update_propagates_gateway_validation_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     board = Board(
@@ -121,10 +69,7 @@ async def test_apply_board_update_validates_current_gateway_main_agent(
         if not isinstance(gateway_id, UUID):
             raise AssertionError("expected UUID gateway id")
         calls.append(gateway_id)
-        raise HTTPException(
-            status_code=422,
-            detail=boards._ERR_GATEWAY_MAIN_AGENT_REQUIRED,
-        )
+        raise HTTPException(status_code=422, detail="gateway_id is invalid")
 
     async def _fake_save(_session: object, _board: Board) -> Board:
         return _board
@@ -140,5 +85,5 @@ async def test_apply_board_update_validates_current_gateway_main_agent(
         )
 
     assert exc_info.value.status_code == 422
-    assert exc_info.value.detail == boards._ERR_GATEWAY_MAIN_AGENT_REQUIRED
+    assert exc_info.value.detail == "gateway_id is invalid"
     assert calls == [board.gateway_id]

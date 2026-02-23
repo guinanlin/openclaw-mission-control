@@ -112,16 +112,20 @@ export function AgentsTable({
           }),
       },
       {
-        accessorKey: "status",
-        header: "Status",
-        cell: ({ row }) => pillCell(row.original.status),
-      },
-      {
-        accessorKey: "openclaw_session_id",
-        header: "Session",
+        id: "role",
+        accessorFn: (row) => {
+          if (row.is_gateway_main) return "Gateway main";
+          if (row.is_board_lead) return "Lead";
+          return "Worker";
+        },
+        header: "Role",
         cell: ({ row }) => (
           <span className="text-sm text-slate-700">
-            {truncate(row.original.openclaw_session_id)}
+            {row.original.is_gateway_main
+              ? "Gateway main"
+              : row.original.is_board_lead
+                ? "Lead"
+                : "Worker"}
           </span>
         ),
       },
@@ -140,6 +144,20 @@ export function AgentsTable({
             block: false,
           });
         },
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => pillCell(row.original.status),
+      },
+      {
+        accessorKey: "openclaw_session_id",
+        header: "Session",
+        cell: ({ row }) => (
+          <span className="text-sm text-slate-700">
+            {truncate(row.original.openclaw_session_id)}
+          </span>
+        ),
       },
       {
         accessorKey: "last_seen_at",

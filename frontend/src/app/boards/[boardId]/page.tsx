@@ -1753,12 +1753,16 @@ export default function BoardDetailPage() {
                     }
                     const next = [...prev];
                     const existing = next[index];
-                    const assignee = incomingTask.assigned_agent_id
+                    const resolvedAssignee = incomingTask.assigned_agent_id
                       ? (agentsRef.current.find(
                           (agent) =>
                             agent.id === incomingTask.assigned_agent_id,
                         )?.name ?? null)
                       : null;
+                    const assignee =
+                      resolvedAssignee ??
+                      (incomingTask.assigned_agent_id ? existing.assignee : null) ??
+                      null;
                     const updated = normalizeTask({
                       ...existing,
                       ...incomingTask,
@@ -2121,6 +2125,20 @@ export default function BoardDetailPage() {
     });
     return map;
   }, [tasks]);
+
+  /** Resolve assignee for display when task.assignee is missing but assigned_agent_id is set (e.g. Review column showing Unassigned). */
+  const tasksWithResolvedAssignee = useMemo(
+    () =>
+      tasks.map((t) => ({
+        ...t,
+        assignee:
+          t.assignee ??
+          (t.assigned_agent_id
+            ? assigneeById.get(t.assigned_agent_id) ?? null
+            : null),
+      })),
+    [tasks, assigneeById],
+  );
 
   const orderedLiveFeed = useMemo(() => {
     return [...liveFeed].sort((a, b) => {
@@ -2742,11 +2760,16 @@ export default function BoardDetailPage() {
               "Validation error while moving task.",
           );
         }
-        const assignee = result.data.assigned_agent_id
-          ? (agentsRef.current.find(
-              (agent) => agent.id === result.data.assigned_agent_id,
-            )?.name ?? null)
+        const assignedId = result.data.assigned_agent_id;
+        const resolvedAssignee = assignedId
+          ? (assigneeById.get(assignedId) ??
+              agentsRef.current.find((a) => a.id === assignedId)?.name ??
+              null)
           : null;
+        const assignee =
+          resolvedAssignee ??
+          (assignedId ? currentTask.assignee : null) ??
+          null;
         const updated = normalizeTask({
           ...currentTask,
           ...result.data,
@@ -2766,7 +2789,7 @@ export default function BoardDetailPage() {
         pushToast(message);
       }
     },
-    [boardId, isSignedIn, pushToast, taskTitleById],
+    [assigneeById, boardId, isSignedIn, pushToast, taskTitleById],
   );
 
   const agentInitials = (agent: Agent) =>
@@ -3440,7 +3463,7 @@ export default function BoardDetailPage() {
 
                   {viewMode === "board" ? (
                     <TaskBoard
-                      tasks={tasks}
+                      tasks={tasksWithResolvedAssignee}
                       onTaskSelect={openComments}
                       onTaskMove={canWrite ? handleTaskMove : undefined}
                       readOnly={!canWrite}
@@ -3469,12 +3492,12 @@ export default function BoardDetailPage() {
                         </div>
                       </div>
                       <div className="divide-y divide-slate-100">
-                        {tasks.length === 0 ? (
+                        {tasksWithResolvedAssignee.length === 0 ? (
                           <div className="px-5 py-8 text-sm text-slate-500">
                             No tasks yet. Create your first task to get started.
                           </div>
                         ) : (
-                          tasks.map((task) => (
+                          tasksWithResolvedAssignee.map((task) => (
                             <button
                               key={task.id}
                               type="button"

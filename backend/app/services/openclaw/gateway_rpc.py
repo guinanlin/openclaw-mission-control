@@ -230,6 +230,7 @@ class GatewayConfig:
 
     url: str
     token: str | None = None
+    password: str | None = None
 
 
 def _build_gateway_url(config: GatewayConfig) -> str:
@@ -319,7 +320,25 @@ def _build_connect_params(
             "mode": "ui",
         },
     }
-    if config.token:
+    if config.password:
+        params["auth"] = {"password": config.password}
+        if config.token:
+            params["auth"]["token"] = config.token
+        # When token is present, add device auth so the gateway grants operator scopes.
+        if config.token:
+            try:
+                private_key, pub_bytes, device_id = _get_or_create_device_keypair()
+                params["device"] = _build_device_auth(
+                    token=config.token,
+                    nonce=nonce,
+                    scopes=scopes,
+                    device_id=device_id,
+                    private_key=private_key,
+                    pub_bytes=pub_bytes,
+                )
+            except Exception:
+                logger.warning("gateway.rpc.device_auth_failed", exc_info=True)
+    elif config.token:
         params["auth"] = {"token": config.token}
         # Device-key auth: sign the challenge nonce so the gateway preserves
         # the requested scopes (without this, scopes are stripped).

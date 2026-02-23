@@ -9,6 +9,7 @@ type GatewayFormProps = {
   name: string;
   gatewayUrl: string;
   gatewayToken: string;
+  gatewayPassword: string;
   workspaceRoot: string;
   gatewayUrlError: string | null;
   gatewayCheckStatus: GatewayCheckStatus;
@@ -26,6 +27,7 @@ type GatewayFormProps = {
   onNameChange: (next: string) => void;
   onGatewayUrlChange: (next: string) => void;
   onGatewayTokenChange: (next: string) => void;
+  onGatewayPasswordChange: (next: string) => void;
   onWorkspaceRootChange: (next: string) => void;
 };
 
@@ -33,6 +35,7 @@ export function GatewayForm({
   name,
   gatewayUrl,
   gatewayToken,
+  gatewayPassword,
   workspaceRoot,
   gatewayUrlError,
   gatewayCheckStatus,
@@ -50,6 +53,7 @@ export function GatewayForm({
   onNameChange,
   onGatewayUrlChange,
   onGatewayTokenChange,
+  onGatewayPasswordChange,
   onWorkspaceRootChange,
 }: GatewayFormProps) {
   return (
@@ -123,6 +127,20 @@ export function GatewayForm({
             onChange={(event) => onGatewayTokenChange(event.target.value)}
             onBlur={onRunGatewayCheck}
             placeholder="Bearer token"
+            disabled={isLoading}
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-slate-900">
+            Gateway password
+          </label>
+          <Input
+            type="password"
+            autoComplete="current-password"
+            value={gatewayPassword}
+            onChange={(event) => onGatewayPasswordChange(event.target.value)}
+            onBlur={onRunGatewayCheck}
+            placeholder="Password (when gateway uses password auth)"
             disabled={isLoading}
           />
         </div>

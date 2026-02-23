@@ -28,6 +28,7 @@ from app.services.openclaw.db_agent_state import (
 )
 from app.services.openclaw.db_service import OpenClawDBService
 from app.services.openclaw.gateway_compat import check_gateway_runtime_compatibility
+from app.services.openclaw.gateway_resolver import gateway_client_config
 from app.services.openclaw.gateway_rpc import GatewayConfig as GatewayClientConfig
 from app.services.openclaw.gateway_rpc import OpenClawGatewayError, openclaw_call
 from app.services.openclaw.provisioning import OpenClawGatewayProvisioner
@@ -167,7 +168,7 @@ class GatewayAdminLifecycleService(OpenClawDBService):
     async def gateway_has_main_agent_entry(self, gateway: Gateway) -> bool:
         if not gateway.url:
             return False
-        config = GatewayClientConfig(url=gateway.url, token=gateway.token)
+        config = gateway_client_config(gateway)
         target_id = GatewayAgentIdentity.openclaw_agent_id(gateway)
         try:
             await openclaw_call("agents.files.list", {"agentId": target_id}, config=config)
@@ -178,9 +179,15 @@ class GatewayAdminLifecycleService(OpenClawDBService):
             return True
         return True
 
-    async def assert_gateway_runtime_compatible(self, *, url: str, token: str | None) -> None:
+    async def assert_gateway_runtime_compatible(
+        self,
+        *,
+        url: str,
+        token: str | None = None,
+        password: str | None = None,
+    ) -> None:
         """Validate that a gateway runtime meets minimum supported version."""
-        config = GatewayClientConfig(url=url, token=token)
+        config = GatewayClientConfig(url=url, token=token, password=password)
         try:
             result = await check_gateway_runtime_compatibility(config)
         except OpenClawGatewayError as exc:
