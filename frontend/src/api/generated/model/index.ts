@@ -7,6 +7,7 @@
 
 export * from "./activityEventRead";
 export * from "./activityTaskCommentFeedItemRead";
+export * from "./agentChannelConfigRead";
 export * from "./agentCreate";
 export * from "./agentCreateHeartbeatConfig";
 export * from "./agentCreateIdentityProfile";
@@ -159,6 +160,7 @@ export * from "./listTasksApiV1AgentBoardsBoardIdTasksGetParams";
 export * from "./listTasksApiV1BoardsBoardIdTasksGetParams";
 export * from "./lLMErrorResponse";
 export * from "./lLMErrorResponseDetail";
+export * from "./mainAgentRead";
 export * from "./marketplaceSkillActionResponse";
 export * from "./marketplaceSkillCardRead";
 export * from "./marketplaceSkillCardReadMetadata";

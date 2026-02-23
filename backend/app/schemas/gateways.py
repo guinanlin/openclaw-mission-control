@@ -96,3 +96,12 @@ class GatewayTemplatesSyncResult(SQLModel):
     agents_skipped: int
     main_updated: bool
     errors: list[GatewayTemplatesSyncError] = Field(default_factory=list)
+
+
+class MainAgentRead(SQLModel):
+    """Read-only view of a gateway's main agent config (agents.defaults from OpenClaw)."""
+
+    gateway_id: UUID
+    config_hash: str | None = None
+    main_key: str | None = None
+    defaults: dict = Field(default_factory=dict)

@@ -19,7 +19,7 @@ type SignedOutConfig = {
 };
 
 type DashboardPageLayoutProps = {
-  signedOut: SignedOutConfig;
+  signedOut?: SignedOutConfig;
   title: ReactNode;
   description?: ReactNode;
   headerActions?: ReactNode;
@@ -52,16 +52,18 @@ export function DashboardPageLayout({
 
   return (
     <DashboardShell>
-      <SignedOut>
-        <SignedOutPanel
-          message={signedOut.message}
-          forceRedirectUrl={signedOut.forceRedirectUrl}
-          signUpForceRedirectUrl={signedOut.signUpForceRedirectUrl}
-          mode={signedOut.mode}
-          buttonLabel={signedOut.buttonLabel}
-          buttonTestId={signedOut.buttonTestId}
-        />
-      </SignedOut>
+      {signedOut ? (
+        <SignedOut>
+          <SignedOutPanel
+            message={signedOut.message}
+            forceRedirectUrl={signedOut.forceRedirectUrl}
+            signUpForceRedirectUrl={signedOut.signUpForceRedirectUrl}
+            mode={signedOut.mode}
+            buttonLabel={signedOut.buttonLabel}
+            buttonTestId={signedOut.buttonTestId}
+          />
+        </SignedOut>
+      ) : null}
       <SignedIn>
         <DashboardSidebar />
         <main

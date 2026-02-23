@@ -38,6 +38,7 @@ import type {
   LimitOffsetPageTypeVarCustomizedGatewayRead,
   ListGatewaySessionsApiV1GatewaysSessionsGetParams,
   ListGatewaysApiV1GatewaysGetParams,
+  MainAgentRead,
   OkResponse,
   SendGatewaySessionMessageApiV1GatewaysSessionsSessionIdMessagePostParams,
   SyncGatewayTemplatesApiV1GatewaysGatewayIdTemplatesSyncPostParams,
@@ -1982,6 +1983,139 @@ export function useGetGatewayApiV1GatewaysGatewayIdGet<
   queryKey: DataTag<QueryKey, TData, TError>;
 } {
   const queryOptions = getGetGatewayApiV1GatewaysGatewayIdGetQueryOptions(
+    gatewayId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Return the main agent config (agents.defaults) for a gateway from OpenClaw config.get.
+ * @summary Get Gateway Main Agent
+ */
+export type getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGetResponse200 = {
+  data: MainAgentRead;
+  status: 200;
+};
+
+export type getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGetResponse422 = {
+  data: HTTPValidationError;
+  status: 422;
+};
+
+export type getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGetResponseSuccess =
+  getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGetResponse200 & {
+    headers: Headers;
+  };
+export type getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGetResponseError =
+  getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGetResponse422 & {
+    headers: Headers;
+  };
+
+export type getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGetResponse =
+  | getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGetResponseSuccess
+  | getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGetResponseError;
+
+export const getGetGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGetUrl = (
+  gatewayId: string,
+) => {
+  return `/api/v1/gateways/${gatewayId}/main-agent`;
+};
+
+export const getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGet = async (
+  gatewayId: string,
+  options?: RequestInit,
+): Promise<getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGetResponse> => {
+  return customFetch<getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGetResponse>(
+    getGetGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGetUrl(gatewayId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGetQueryKey = (
+  gatewayId: string,
+) => {
+  return [`/api/v1/gateways/${gatewayId}/main-agent`] as const;
+};
+
+export const getGetGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGet>>,
+  TError = HTTPValidationError,
+>(
+  gatewayId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getGetGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGetQueryKey(gatewayId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGet>>
+  > = ({ signal }) =>
+    getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGet(gatewayId, {
+      signal,
+      ...requestOptions,
+    });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!gatewayId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGetQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGet>>
+  >;
+export type GetGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGetQueryError =
+  HTTPValidationError;
+
+export function useGetGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGet<
+  TData = Awaited<ReturnType<typeof getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGet>>,
+  TError = HTTPValidationError,
+>(
+  gatewayId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetGatewayMainAgentApiV1GatewaysGatewayIdMainAgentGetQueryOptions(
     gatewayId,
     options,
   );

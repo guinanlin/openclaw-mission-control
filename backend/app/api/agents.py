@@ -24,11 +24,14 @@ from app.schemas.pagination import DefaultLimitOffsetPage
 from app.services.openclaw.provisioning_db import AgentLifecycleService, AgentUpdateOptions
 from app.services.organizations import OrganizationContext
 
+from app.api.agent_channel_configs import router as agent_channel_configs_router
+
 if TYPE_CHECKING:
     from fastapi_pagination.limit_offset import LimitOffsetPage
     from sqlmodel.ext.asyncio.session import AsyncSession
 
 router = APIRouter(prefix="/agents", tags=["agents"])
+router.include_router(agent_channel_configs_router)
 
 BOARD_ID_QUERY = Query(default=None)
 GATEWAY_ID_QUERY = Query(default=None)

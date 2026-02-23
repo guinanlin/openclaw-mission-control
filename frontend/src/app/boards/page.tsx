@@ -2,71 +2,35 @@
 
 export const dynamic = "force-dynamic";
 
-import { useMemo, useState } from "react";
+import { useMemo, useEffect } from "react";
 import Link from "next/link";
 
 import { useAuth } from "@/auth/clerk";
-import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 
 import { ApiError } from "@/api/mutator";
 import {
   type listBoardsApiV1BoardsGetResponse,
-  getListBoardsApiV1BoardsGetQueryKey,
-  useDeleteBoardApiV1BoardsBoardIdDelete,
   useListBoardsApiV1BoardsGet,
 } from "@/api/generated/boards/boards";
-import {
-  type listBoardGroupsApiV1BoardGroupsGetResponse,
-  useListBoardGroupsApiV1BoardGroupsGet,
-} from "@/api/generated/board-groups/board-groups";
-import { createOptimisticListDeleteMutation } from "@/lib/list-delete";
 import { useOrganizationMembership } from "@/lib/use-organization-membership";
-import { useUrlSorting } from "@/lib/use-url-sorting";
-import type { BoardRead } from "@/api/generated/model";
-import { BoardsTable } from "@/components/boards/BoardsTable";
 import { DashboardPageLayout } from "@/components/templates/DashboardPageLayout";
 import { buttonVariants } from "@/components/ui/button";
-import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
-
-const BOARD_SORTABLE_COLUMNS = ["name", "group", "updated_at"];
 
 export default function BoardsPage() {
   const { isSignedIn } = useAuth();
-  const queryClient = useQueryClient();
-  const { sorting, onSortingChange } = useUrlSorting({
-    allowedColumnIds: BOARD_SORTABLE_COLUMNS,
-    defaultSorting: [{ id: "name", desc: false }],
-    paramPrefix: "boards",
-  });
-
+  const router = useRouter();
   const { isAdmin } = useOrganizationMembership(isSignedIn);
-  const [deleteTarget, setDeleteTarget] = useState<BoardRead | null>(null);
 
-  const boardsKey = getListBoardsApiV1BoardsGetQueryKey();
   const boardsQuery = useListBoardsApiV1BoardsGet<
     listBoardsApiV1BoardsGetResponse,
     ApiError
   >(undefined, {
     query: {
       enabled: Boolean(isSignedIn),
-      refetchInterval: 30_000,
       refetchOnMount: "always",
     },
   });
-
-  const groupsQuery = useListBoardGroupsApiV1BoardGroupsGet<
-    listBoardGroupsApiV1BoardGroupsGetResponse,
-    ApiError
-  >(
-    { limit: 200 },
-    {
-      query: {
-        enabled: Boolean(isSignedIn),
-        refetchInterval: 30_000,
-        refetchOnMount: "always",
-      },
-    },
-  );
 
   const boards = useMemo(
     () =>
@@ -76,41 +40,17 @@ export default function BoardsPage() {
     [boardsQuery.data],
   );
 
-  const groups = useMemo(() => {
-    if (groupsQuery.data?.status !== 200) return [];
-    return groupsQuery.data.data.items ?? [];
-  }, [groupsQuery.data]);
+  // 有看板时直接进入第一个看板详情页
+  useEffect(() => {
+    if (!isSignedIn || boardsQuery.isLoading || boards.length === 0) return;
+    const first = boards[0];
+    if (first?.id) {
+      router.replace(`/boards/${first.id}`);
+    }
+  }, [isSignedIn, boardsQuery.isLoading, boards, router]);
 
-  const deleteMutation = useDeleteBoardApiV1BoardsBoardIdDelete<
-    ApiError,
-    { previous?: listBoardsApiV1BoardsGetResponse }
-  >(
-    {
-      mutation: createOptimisticListDeleteMutation<
-        BoardRead,
-        listBoardsApiV1BoardsGetResponse,
-        { boardId: string }
-      >({
-        queryClient,
-        queryKey: boardsKey,
-        getItemId: (board) => board.id,
-        getDeleteId: ({ boardId }) => boardId,
-        onSuccess: () => {
-          setDeleteTarget(null);
-        },
-        invalidateQueryKeys: [boardsKey],
-      }),
-    },
-    queryClient,
-  );
-
-  const handleDelete = () => {
-    if (!deleteTarget) return;
-    deleteMutation.mutate({ boardId: deleteTarget.id });
-  };
-
-  return (
-    <>
+  if (!isSignedIn) {
+    return (
       <DashboardPageLayout
         signedOut={{
           message: "Sign in to view boards.",
@@ -118,66 +58,79 @@ export default function BoardsPage() {
           signUpForceRedirectUrl: "/boards",
         }}
         title="Boards"
-        description={`Manage boards and task workflows. ${boards.length} board${boards.length === 1 ? "" : "s"} total.`}
-        headerActions={
-          boards.length > 0 && isAdmin ? (
-            <Link
-              href="/boards/new"
-              className={buttonVariants({
-                size: "md",
-                variant: "primary",
-              })}
-            >
-              Create board
-            </Link>
-          ) : null
-        }
-        stickyHeader
+        description="Manage boards and task workflows."
       >
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <BoardsTable
-            boards={boards}
-            boardGroups={groups}
-            isLoading={boardsQuery.isLoading}
-            sorting={sorting}
-            onSortingChange={onSortingChange}
-            showActions
-            stickyHeader
-            onDelete={setDeleteTarget}
-            emptyState={{
-              title: "No boards yet",
-              description:
-                "Create your first board to start routing tasks and monitoring work across agents.",
-              actionHref: "/boards/new",
-              actionLabel: "Create your first board",
-            }}
-          />
-        </div>
-
-        {boardsQuery.error ? (
-          <p className="mt-4 text-sm text-red-500">
-            {boardsQuery.error.message}
-          </p>
-        ) : null}
+        <div />
       </DashboardPageLayout>
-      <ConfirmActionDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteTarget(null);
-          }
-        }}
-        ariaLabel="Delete board"
-        title="Delete board"
-        description={
-          <>
-            This will remove {deleteTarget?.name}. This action cannot be undone.
-          </>
-        }
-        errorMessage={deleteMutation.error?.message}
-        onConfirm={handleDelete}
-        isConfirming={deleteMutation.isPending}
-      />
-    </>
+    );
+  }
+
+  if (boardsQuery.isLoading) {
+    return (
+      <DashboardPageLayout
+        title="Boards"
+        description="Loading…"
+      >
+        <div className="flex min-h-[40vh] items-center justify-center text-sm text-slate-500">
+          Loading…
+        </div>
+      </DashboardPageLayout>
+    );
+  }
+
+  // 无看板时仅展示空状态（重定向由 useEffect 处理，有看板时不会走到这里）
+  if (boards.length > 0) {
+    return (
+      <DashboardPageLayout title="Boards" description="Redirecting…">
+        <div className="flex min-h-[40vh] items-center justify-center text-sm text-slate-500">
+          Redirecting to board…
+        </div>
+      </DashboardPageLayout>
+    );
+  }
+
+  return (
+    <DashboardPageLayout
+      title="Boards"
+      description="No boards yet. Create your first board to start."
+      headerActions={
+        isAdmin ? (
+          <Link
+            href="/boards/new"
+            className={buttonVariants({
+              size: "md",
+              variant: "primary",
+            })}
+          >
+            Create board
+          </Link>
+        ) : null
+      }
+    >
+      <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+        <p className="text-sm font-medium text-slate-700">No boards yet</p>
+        <p className="mt-1 text-sm text-slate-500">
+          Create your first board to start routing tasks and monitoring work
+          across agents.
+        </p>
+        {isAdmin ? (
+          <Link
+            href="/boards/new"
+            className={buttonVariants({
+              size: "md",
+              variant: "primary",
+              className: "mt-4",
+            })}
+          >
+            Create your first board
+          </Link>
+        ) : null}
+      </div>
+      {boardsQuery.error ? (
+        <p className="mt-4 text-sm text-red-500">
+          {boardsQuery.error.message}
+        </p>
+      ) : null}
+    </DashboardPageLayout>
   );
 }

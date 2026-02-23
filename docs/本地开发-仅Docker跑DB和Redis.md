@@ -49,8 +49,11 @@ docker ps -a
 ```bash
 docker compose -f compose.yml --env-file .env down
 docker compose -f compose.yml --env-file .env up -d db redis
+docker compose -f compose.yml --env-file .env up -d db redis backend frontend webhook-worker
 
  docker compose -f compose.yml -f compose.dev.yml up --build backend frontend webhook-worker
+
+ 
 ```
 
 ---

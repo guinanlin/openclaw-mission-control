@@ -17,6 +17,7 @@ import { ApiError } from "@/api/mutator";
 import {
   type listAgentsApiV1AgentsGetResponse,
   getListAgentsApiV1AgentsGetQueryKey,
+  useCreateAgentApiV1AgentsPost,
   useDeleteAgentApiV1AgentsAgentIdDelete,
   useListAgentsApiV1AgentsGet,
 } from "@/api/generated/agents/agents";
@@ -25,7 +26,7 @@ import {
   getListBoardsApiV1BoardsGetQueryKey,
   useListBoardsApiV1BoardsGet,
 } from "@/api/generated/boards/boards";
-import { type AgentRead } from "@/api/generated/model";
+import { type AgentCreate, type AgentRead } from "@/api/generated/model";
 import { createOptimisticListDeleteMutation } from "@/lib/list-delete";
 import { useOrganizationMembership } from "@/lib/use-organization-membership";
 import { useUrlSorting } from "@/lib/use-url-sorting";
@@ -38,6 +39,32 @@ const AGENT_SORTABLE_COLUMNS = [
   "last_seen_at",
   "updated_at",
 ];
+
+const DEFAULT_HEARTBEAT_CONFIG = {
+  every: "10m",
+  target: "last",
+  includeReasoning: false,
+} as const;
+
+function agentReadToCreatePayload(
+  source: AgentRead,
+  newName: string,
+): AgentCreate {
+  const heartbeatConfig =
+    source.heartbeat_config &&
+    typeof source.heartbeat_config === "object" &&
+    Object.keys(source.heartbeat_config).length > 0
+      ? (source.heartbeat_config as Record<string, unknown>)
+      : { ...DEFAULT_HEARTBEAT_CONFIG };
+  return {
+    name: newName,
+    board_id: source.board_id ?? null,
+    heartbeat_config: heartbeatConfig,
+    identity_profile: source.identity_profile ?? undefined,
+    identity_template: source.identity_template ?? null,
+    soul_template: source.soul_template ?? null,
+  };
+}
 
 export default function AgentsPage() {
   const { isSignedIn } = useAuth();
@@ -52,6 +79,7 @@ export default function AgentsPage() {
   });
 
   const [deleteTarget, setDeleteTarget] = useState<AgentRead | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
 
   const boardsKey = getListBoardsApiV1BoardsGetQueryKey();
   const agentsKey = getListAgentsApiV1AgentsGetQueryKey();
@@ -93,6 +121,22 @@ export default function AgentsPage() {
     [agentsQuery.data],
   );
 
+  const createAgentMutation = useCreateAgentApiV1AgentsPost<ApiError>({
+    mutation: {
+      onSuccess: (result) => {
+        setCopyError(null);
+        if (result.status === 200) {
+          queryClient.invalidateQueries({ queryKey: agentsKey });
+          queryClient.invalidateQueries({ queryKey: boardsKey });
+          router.push(`/agents/${result.data.id}`);
+        }
+      },
+      onError: (err) => {
+        setCopyError(err.message ?? "Failed to copy agent.");
+      },
+    },
+  });
+
   const deleteMutation = useDeleteAgentApiV1AgentsAgentIdDelete<
     ApiError,
     { previous?: listAgentsApiV1AgentsGetResponse }
@@ -119,6 +163,17 @@ export default function AgentsPage() {
   const handleDelete = () => {
     if (!deleteTarget) return;
     deleteMutation.mutate({ agentId: deleteTarget.id });
+  };
+
+  const handleCopy = (agent: AgentRead) => {
+    setCopyError(null);
+    if (!agent.board_id) {
+      setCopyError("Gateway main agents cannot be copied.");
+      return;
+    }
+    createAgentMutation.mutate({
+      data: agentReadToCreatePayload(agent, `Copy of ${agent.name}`),
+    });
   };
 
   return (
@@ -151,6 +206,7 @@ export default function AgentsPage() {
             onSortingChange={onSortingChange}
             showActions
             stickyHeader
+            onCopy={handleCopy}
             onDelete={setDeleteTarget}
             emptyState={{
               title: "No agents yet",
@@ -166,6 +222,9 @@ export default function AgentsPage() {
           <p className="mt-4 text-sm text-red-500">
             {agentsQuery.error.message}
           </p>
+        ) : null}
+        {copyError ? (
+          <p className="mt-4 text-sm text-red-500">{copyError}</p>
         ) : null}
       </DashboardPageLayout>
 

@@ -3,6 +3,9 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 
+# Skip Cypress binary download in Docker (only needed for local e2e; avoids flaky/corrupted download in build).
+ENV CYPRESS_INSTALL_BINARY=0
+
 COPY package.json package-lock.json ./
 RUN npm ci
 

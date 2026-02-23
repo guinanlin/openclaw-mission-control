@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import col
 
 from app.api.deps import require_org_admin
@@ -22,9 +22,13 @@ from app.schemas.gateways import (
     GatewayRead,
     GatewayTemplatesSyncResult,
     GatewayUpdate,
+    MainAgentRead,
 )
 from app.schemas.pagination import DefaultLimitOffsetPage
 from app.services.openclaw.admin_service import GatewayAdminLifecycleService
+from app.services.openclaw.config_service import get_agents_list_main_key, get_gateway_config
+from app.services.openclaw.gateway_rpc import OpenClawGatewayError
+from app.services.openclaw.gateway_resolver import gateway_client_config
 from app.services.openclaw.session_service import GatewayTemplateSyncQuery
 
 if TYPE_CHECKING:
@@ -119,6 +123,39 @@ async def get_gateway(
         organization_id=ctx.organization.id,
     )
     return gateway
+
+
+@router.get("/{gateway_id}/main-agent", response_model=MainAgentRead)
+async def get_gateway_main_agent(
+    gateway_id: UUID,
+    session: AsyncSession = SESSION_DEP,
+    ctx: OrganizationContext = ORG_ADMIN_DEP,
+) -> MainAgentRead:
+    """Return the main agent config (agents.defaults) for a gateway from OpenClaw config.get."""
+    service = GatewayAdminLifecycleService(session)
+    gateway = await service.require_gateway(
+        gateway_id=gateway_id,
+        organization_id=ctx.organization.id,
+    )
+    try:
+        client_config = gateway_client_config(gateway)
+        config_hash, data = await get_gateway_config(client_config)
+        agents_section = data.get("agents") or {}
+        defaults = agents_section.get("defaults")
+        if not isinstance(defaults, dict):
+            defaults = {}
+        main_key = await get_agents_list_main_key(client_config)
+    except OpenClawGatewayError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Gateway unreachable or config error: {exc!s}",
+        ) from exc
+    return MainAgentRead(
+        gateway_id=gateway.id,
+        config_hash=config_hash,
+        main_key=main_key,
+        defaults=defaults,
+    )
 
 
 @router.patch("/{gateway_id}", response_model=GatewayRead)

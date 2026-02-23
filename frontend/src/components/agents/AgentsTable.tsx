@@ -41,6 +41,7 @@ type AgentsTableProps = {
   stickyHeader?: boolean;
   emptyMessage?: string;
   emptyState?: AgentsTableEmptyState;
+  onCopy?: (agent: AgentRead) => void;
   onDelete?: (agent: AgentRead) => void;
 };
 
@@ -74,6 +75,7 @@ export function AgentsTable({
   stickyHeader = false,
   emptyMessage = "No agents found.",
   emptyState,
+  onCopy,
   onDelete,
 }: AgentsTableProps) {
   const [internalSorting, setInternalSorting] = useState<SortingState>([
@@ -190,20 +192,38 @@ export function AgentsTable({
     ...(disableSorting ? {} : { getSortedRowModel: getSortedRowModel() }),
   });
 
+  const rowActions = useMemo(() => {
+    if (!showActions) return undefined;
+    if (onCopy) {
+      const actions = [
+        {
+          key: "edit",
+          label: "Edit",
+          href: (agent: AgentRead) => `/agents/${agent.id}/edit`,
+        },
+        {
+          key: "channel-config",
+          label: "Channel 配置",
+          href: (agent: AgentRead) => `/agents/${agent.id}/channel-configs`,
+        },
+        { key: "copy", label: "Copy", onClick: onCopy },
+        ...(onDelete ? [{ key: "delete" as const, label: "Delete", onClick: onDelete }] : []),
+      ];
+      return { actions };
+    }
+    return {
+      getEditHref: (agent: AgentRead) => `/agents/${agent.id}/edit`,
+      onDelete,
+    };
+  }, [showActions, onCopy, onDelete]);
+
   return (
     <DataTable
       table={table}
       isLoading={isLoading}
       emptyMessage={emptyMessage}
       stickyHeader={stickyHeader}
-      rowActions={
-        showActions
-          ? {
-              getEditHref: (agent) => `/agents/${agent.id}/edit`,
-              onDelete,
-            }
-          : undefined
-      }
+      rowActions={rowActions}
       rowClassName="hover:bg-slate-50"
       cellClassName="px-6 py-4"
       emptyState={

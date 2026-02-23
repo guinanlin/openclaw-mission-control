@@ -10,10 +10,13 @@ import {
   useSearchParams,
 } from "next/navigation";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { SignInButton, SignedIn, SignedOut, useAuth } from "@/auth/clerk";
 import {
   Activity,
   ArrowUpRight,
+  ChevronDown,
+  LayoutGrid,
   MessageSquare,
   Pause,
   Plus,
@@ -22,8 +25,10 @@ import {
   RefreshCcw,
   Settings,
   ShieldCheck,
+  Trash2,
   X,
 } from "lucide-react";
+import Link from "next/link";
 
 import { Markdown } from "@/components/atoms/Markdown";
 import { StatusDot } from "@/components/atoms/StatusDot";
@@ -50,6 +55,12 @@ import { Input } from "@/components/ui/input";
 import DropdownSelect, {
   type DropdownSelectOption,
 } from "@/components/ui/dropdown-select";
+import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -66,8 +77,12 @@ import {
 } from "@/api/generated/approvals/approvals";
 import { listActivityApiV1ActivityGet } from "@/api/generated/activity/activity";
 import {
+  type listBoardsApiV1BoardsGetResponse,
+  getListBoardsApiV1BoardsGetQueryKey,
   getBoardGroupSnapshotApiV1BoardsBoardIdGroupSnapshotGet,
   getBoardSnapshotApiV1BoardsBoardIdSnapshotGet,
+  useDeleteBoardApiV1BoardsBoardIdDelete,
+  useListBoardsApiV1BoardsGet,
 } from "@/api/generated/boards/boards";
 import {
   createBoardMemoryApiV1BoardsBoardIdMemoryPost,
@@ -814,6 +829,37 @@ export default function BoardDetailPage() {
     return resolveMemberDisplayName(member, DEFAULT_HUMAN_LABEL);
   }, [membershipQuery.data]);
   const canWrite = boardAccess.canWrite;
+
+  const queryClient = useQueryClient();
+  const boardsKey = getListBoardsApiV1BoardsGetQueryKey();
+  const boardsListQuery = useListBoardsApiV1BoardsGet<
+    listBoardsApiV1BoardsGetResponse,
+    ApiError
+  >(undefined, {
+    query: {
+      enabled: Boolean(isSignedIn),
+      refetchOnMount: "always",
+    },
+  });
+  const allBoards = useMemo(
+    () =>
+      boardsListQuery.data?.status === 200
+        ? (boardsListQuery.data.data.items ?? [])
+        : [],
+    [boardsListQuery.data],
+  );
+  const deleteBoardMutation = useDeleteBoardApiV1BoardsBoardIdDelete(
+    {
+      mutation: {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: boardsKey });
+          router.push("/boards");
+        },
+      },
+    },
+    queryClient,
+  );
+  const [isBoardDeleteDialogOpen, setIsBoardDeleteDialogOpen] = useState(false);
 
   const [board, setBoard] = useState<Board | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -3029,9 +3075,76 @@ export default function BoardDetailPage() {
             <div className="px-8 py-6">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <h1 className="mt-2 text-2xl font-semibold text-slate-900 tracking-tight">
-                    {board?.name ?? "Board"}
-                  </h1>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="mt-2 inline-flex items-center gap-1.5 text-left text-2xl font-semibold text-slate-900 tracking-tight hover:text-slate-700"
+                        aria-label="Switch or manage board"
+                      >
+                        <span>{board?.name ?? "Board"}</span>
+                        <ChevronDown className="h-6 w-6 text-slate-500" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-64 p-0">
+                      <div className="max-h-[70vh] overflow-y-auto py-1">
+                        {allBoards.map((b) => (
+                          <Link
+                            key={b.id}
+                            href={`/boards/${b.id}`}
+                            className={cn(
+                              "flex items-center gap-2 px-3 py-2 text-sm transition hover:bg-slate-100",
+                              b.id === boardId
+                                ? "bg-slate-100 font-medium text-slate-900"
+                                : "text-slate-700",
+                            )}
+                          >
+                            <LayoutGrid className="h-4 w-4 shrink-0 text-slate-400" />
+                            <span className="truncate">{b.name}</span>
+                          </Link>
+                        ))}
+                        {allBoards.length === 0 ? (
+                          <p className="px-3 py-2 text-sm text-slate-500">
+                            No boards
+                          </p>
+                        ) : null}
+                      </div>
+                      {isOrgAdmin ? (
+                        <>
+                          <div className="border-t border-slate-200" />
+                          <div className="py-1">
+                            <Link
+                              href="/boards/new"
+                              className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
+                            >
+                              <Plus className="h-4 w-4 shrink-0" />
+                              New board
+                            </Link>
+                            <button
+                              type="button"
+                              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
+                              onClick={() => {
+                                router.push(`/boards/${boardId}/edit`);
+                              }}
+                            >
+                              <Settings className="h-4 w-4 shrink-0" />
+                              Edit board
+                            </button>
+                            <button
+                              type="button"
+                              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 transition hover:bg-red-50"
+                              onClick={() => {
+                                setIsBoardDeleteDialogOpen(true);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 shrink-0" />
+                              Delete board
+                            </button>
+                          </div>
+                        </>
+                      ) : null}
+                    </PopoverContent>
+                  </Popover>
                   <p className="mt-1 text-sm text-slate-500">
                     Keep tasks moving through your workflow.
                   </p>
@@ -3146,17 +3259,6 @@ export default function BoardDetailPage() {
                   >
                     <Activity className="h-4 w-4" />
                   </Button>
-                  {isOrgAdmin ? (
-                    <button
-                      type="button"
-                      onClick={() => router.push(`/boards/${boardId}/edit`)}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-                      aria-label="Board settings"
-                      title="Board settings"
-                    >
-                      <Settings className="h-4 w-4" />
-                    </button>
-                  ) : null}
                 </div>
               </div>
             </div>
@@ -3588,6 +3690,28 @@ export default function BoardDetailPage() {
             </div>
           </div>
         </main>
+        <ConfirmActionDialog
+          open={isBoardDeleteDialogOpen}
+          onOpenChange={setIsBoardDeleteDialogOpen}
+          ariaLabel="Delete board"
+          title="Delete board"
+          description={
+            board ? (
+              <>
+                This will remove {board.name}. This action cannot be undone.
+              </>
+            ) : (
+              "This action cannot be undone."
+            )
+          }
+          errorMessage={deleteBoardMutation.error?.message}
+          onConfirm={() => {
+            if (boardId) {
+              deleteBoardMutation.mutate({ boardId });
+            }
+          }}
+          isConfirming={deleteBoardMutation.isPending}
+        />
       </SignedIn>
       {isDetailOpen || isChatOpen || isLiveFeedOpen ? (
         <div
