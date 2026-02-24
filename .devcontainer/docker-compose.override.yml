@@ -1,0 +1,29 @@
+# DevContainer Docker Compose override
+# Automatically used when running docker compose commands inside DevContainer
+# Adjusts resource limits and networking for local development
+
+version: "3.8"
+
+services:
+  db:
+    # Use host network for easier access from devcontainer
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mission_control"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  default:
+    driver: bridge

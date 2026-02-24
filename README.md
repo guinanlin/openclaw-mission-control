@@ -49,7 +49,36 @@ Core operational areas:
 
 ## Get started in minutes
 
-### Option A: One-command production-style bootstrap
+### Option A: DevContainer / Codespaces (Recommended for developers)
+
+**Fastest way to start developing** — unified environment with all tools pre-configured.
+
+#### GitHub Codespaces (cloud-based, no local setup required)
+
+1. Click **Code** → **Codespaces** → **Create codespace on master**
+2. Wait for container to build (~2-3 minutes)
+3. Open integrated terminal and run:
+
+```bash
+# Terminal 1: Backend
+cd backend && uv run uvicorn app.main:app --reload --port 8000
+
+# Terminal 2: Frontend  
+cd frontend && npm run dev
+```
+
+#### Local VS Code with DevContainer (requires Docker)
+
+1. Install [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+2. Clone and open repo in VS Code
+3. Click **`><`** (bottom-left) → **"Reopen in Container"**
+4. Same terminal commands as above
+
+**Benefits**: consistent Python/Node versions, pre-installed dependencies, auto-formatted code, integrated database.
+
+See [`.devcontainer/README.md`](./.devcontainer/README.md) and [`.devcontainer/CODESPACES.md`](./.devcontainer/CODESPACES.md) for details.
+
+### Option B: One-command production-style bootstrap
 
 If you haven't cloned the repo yet, you can run the installer in one line:
 
@@ -72,7 +101,7 @@ The installer is interactive and will:
 
 Installer support matrix: [`docs/installer-support.md`](./docs/installer-support.md)
 
-### Option B: Manual setup
+### Option C: Manual setup
 
 ### Prerequisites
 

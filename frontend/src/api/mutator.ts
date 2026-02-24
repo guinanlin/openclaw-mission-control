@@ -39,10 +39,8 @@ export const customFetch = async <T>(
   url: string,
   options: RequestInit,
 ): Promise<T> => {
-  const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (!rawBaseUrl) {
-    throw new Error("NEXT_PUBLIC_API_URL is not set.");
-  }
+  // Allow empty NEXT_PUBLIC_API_URL for relative paths (dev mode with Next rewrites)
+  const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
   const baseUrl = rawBaseUrl.replace(/\/+$/, "");
 
   const headers = new Headers(options.headers);
