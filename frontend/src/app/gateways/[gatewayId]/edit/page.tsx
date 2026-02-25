@@ -20,6 +20,7 @@ import { DashboardPageLayout } from "@/components/templates/DashboardPageLayout"
 import {
   DEFAULT_WORKSPACE_ROOT,
   checkGatewayConnection,
+  normalizeGatewayUrl,
   type GatewayCheckStatus,
   validateGatewayUrl,
 } from "@/lib/gateway-form";
@@ -143,7 +144,7 @@ export default function EditGatewayPage() {
 
     const payload: GatewayUpdate = {
       name: resolvedName.trim(),
-      url: resolvedGatewayUrl.trim(),
+      url: normalizeGatewayUrl(resolvedGatewayUrl.trim()),
       token: resolvedGatewayToken.trim() || null,
       password: resolvedGatewayPassword.trim() || null,
       workspace_root: resolvedWorkspaceRoot.trim(),

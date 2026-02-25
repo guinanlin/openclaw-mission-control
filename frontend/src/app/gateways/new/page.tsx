@@ -15,6 +15,7 @@ import { DashboardPageLayout } from "@/components/templates/DashboardPageLayout"
 import {
   DEFAULT_WORKSPACE_ROOT,
   checkGatewayConnection,
+  normalizeGatewayUrl,
   type GatewayCheckStatus,
   validateGatewayUrl,
 } from "@/lib/gateway-form";
@@ -105,7 +106,7 @@ export default function NewGatewayPage() {
     createMutation.mutate({
       data: {
         name: name.trim(),
-        url: gatewayUrl.trim(),
+        url: normalizeGatewayUrl(gatewayUrl.trim()),
         token: gatewayToken.trim() || null,
         password: gatewayPassword.trim() || null,
         workspace_root: workspaceRoot.trim(),

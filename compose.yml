@@ -32,6 +32,7 @@ services:
       - ./backend/.env.example
     volumes:
       - device_keys:/app/app/services/openclaw/.device-keys
+      - ~/.openclaw:/app/.openclaw:ro
     environment:
       # Override localhost defaults for container networking
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@localhost:5432/${POSTGRES_DB:-mission_control}
@@ -40,6 +41,7 @@ services:
       AUTH_MODE: ${AUTH_MODE}
       LOCAL_AUTH_TOKEN: ${LOCAL_AUTH_TOKEN}
       RQ_REDIS_URL: redis://localhost:6379/0
+      OPENCLAW_CONFIG_DIR: /app/.openclaw
     depends_on:
       db:
         condition: service_healthy

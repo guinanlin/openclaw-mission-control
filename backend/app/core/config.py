@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     # OpenClaw gateway runtime compatibility
     gateway_min_version: str = "2026.02.9"
 
+    # OpenClaw config directory for Core Directory feature (~/.openclaw)
+    openclaw_config_dir: str = "~/.openclaw"
+
     # Logging
     log_level: str = "INFO"
     log_format: str = "text"

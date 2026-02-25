@@ -24,6 +24,7 @@ from app.api.boards import router as boards_router
 from app.api.gateway import router as gateway_router
 from app.api.gateways import router as gateways_router
 from app.api.metrics import router as metrics_router
+from app.api.openclaw_config import router as openclaw_config_router
 from app.api.organizations import router as organizations_router
 from app.api.skills_marketplace import router as skills_marketplace_router
 from app.api.souls_directory import router as souls_directory_router
@@ -78,6 +79,10 @@ OPENAPI_TAGS = [
     {
         "name": "souls-directory",
         "description": "Directory and lookup endpoints for agent soul templates and variants.",
+    },
+    {
+        "name": "openclaw-config",
+        "description": "OpenClaw config directory tree for Core Directory feature.",
     },
     {
         "name": "skills",
@@ -165,6 +170,7 @@ _OPENAPI_EXAMPLE_TAGS = {
     "metrics",
     "organizations",
     "souls-directory",
+    "openclaw-config",
     "skills",
     "board-groups",
     "board-group-memory",
@@ -530,6 +536,7 @@ api_v1.include_router(gateway_router)
 api_v1.include_router(gateways_router)
 api_v1.include_router(metrics_router)
 api_v1.include_router(organizations_router)
+api_v1.include_router(openclaw_config_router)
 api_v1.include_router(souls_directory_router)
 api_v1.include_router(skills_marketplace_router)
 api_v1.include_router(board_groups_router)

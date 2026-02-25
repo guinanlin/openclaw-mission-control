@@ -10,16 +10,66 @@ export const validateGatewayUrl = (value: string) => {
   try {
     const url = new URL(trimmed);
     if (url.protocol !== "ws:" && url.protocol !== "wss:") {
-      return "Gateway URL must start with ws:// or wss://.";
-    }
-    if (!url.port) {
-      return "Gateway URL must include an explicit port.";
+      // Allow http/https GitHub.dev links or sign-in redirects by attempting
+      // to normalize them when sending. For validation we accept http/https
+      // but require ws/wss after normalization when actually connecting.
+      if (url.protocol !== "http:" && url.protocol !== "https:") {
+        return "Gateway URL must start with ws://, wss://, http:// or https://.";
+      }
     }
     return null;
   } catch {
-    return "Enter a valid gateway URL including port.";
+    return "Enter a valid gateway URL.";
   }
 };
+
+export const normalizeGatewayUrl = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return trimmed;
+  try {
+    const url = new URL(trimmed);
+    // Already ws/wss -> nothing to do
+    if (url.protocol === "ws:" || url.protocol === "wss:") return trimmed;
+
+    // If the URL contains an encoded `pb` parameter (GitHub.dev / sign-in),
+    // prefer that value if it looks like a URL.
+    try {
+      const pb = url.searchParams.get("pb");
+      if (pb) {
+        const decoded = decodeURIComponent(pb);
+        const pbUrl = new URL(decoded);
+        // convert http/https -> ws/wss
+        const proto = pbUrl.protocol === "https:" ? "wss:" : "ws:";
+        return urlSanitizeProtocol(pbUrl, proto);
+      }
+    } catch {
+      // ignore pb extraction errors and fallthrough to general conversion
+    }
+
+    // If a `port` query parameter exists, use it when building the ws/wss URL.
+    const portParam = url.searchParams.get("port");
+    const proto = url.protocol === "https:" ? "wss:" : "ws:";
+    if (portParam) {
+      const host = url.hostname;
+      const path = url.pathname === "/" ? "" : url.pathname;
+      return `${proto}//${host}:${portParam}${path}`;
+    }
+
+    // Default conversion: switch http(s) -> ws(s) and keep host/path
+    return `${proto}//${url.host}${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return value;
+  }
+};
+
+function urlSanitizeProtocol(u: URL, proto: string) {
+  // Build a string from URL while replacing its protocol
+  const host = u.host;
+  const path = u.pathname === "/" ? "" : u.pathname;
+  const search = u.search || "";
+  const hash = u.hash || "";
+  return `${proto}//${host}${path}${search}${hash}`;
+}
 
 export async function checkGatewayConnection(params: {
   gatewayUrl: string;
@@ -28,7 +78,7 @@ export async function checkGatewayConnection(params: {
 }): Promise<{ ok: boolean; message: string }> {
   try {
     const requestParams: Record<string, string> = {
-      gateway_url: params.gatewayUrl.trim(),
+      gateway_url: normalizeGatewayUrl(params.gatewayUrl.trim()),
     };
     if (params.gatewayToken?.trim()) {
       requestParams.gateway_token = params.gatewayToken.trim();
