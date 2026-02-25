@@ -2,8 +2,8 @@
 
 export const dynamic = "force-dynamic";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/auth/clerk";
 import { useQueryClient } from "@tanstack/react-query";
@@ -66,10 +66,16 @@ function agentReadToCreatePayload(
   };
 }
 
+const BOARD_FILTER_PARAM = "board";
+
 export default function AgentsPage() {
   const { isSignedIn } = useAuth();
   const queryClient = useQueryClient();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const rawBoardId = searchParams.get(BOARD_FILTER_PARAM)?.trim() || null;
 
   const { isAdmin } = useOrganizationMembership(isSignedIn);
   const { sorting, onSortingChange } = useUrlSorting({
@@ -82,7 +88,6 @@ export default function AgentsPage() {
   const [copyError, setCopyError] = useState<string | null>(null);
 
   const boardsKey = getListBoardsApiV1BoardsGetQueryKey();
-  const agentsKey = getListAgentsApiV1AgentsGetQueryKey();
 
   const boardsQuery = useListBoardsApiV1BoardsGet<
     listBoardsApiV1BoardsGetResponse,
@@ -95,17 +100,6 @@ export default function AgentsPage() {
     },
   });
 
-  const agentsQuery = useListAgentsApiV1AgentsGet<
-    listAgentsApiV1AgentsGetResponse,
-    ApiError
-  >(undefined, {
-    query: {
-      enabled: Boolean(isSignedIn && isAdmin),
-      refetchInterval: 15_000,
-      refetchOnMount: "always",
-    },
-  });
-
   const boards = useMemo(
     () =>
       boardsQuery.data?.status === 200
@@ -113,6 +107,36 @@ export default function AgentsPage() {
         : [],
     [boardsQuery.data],
   );
+
+  const sortedBoards = useMemo(
+    () => [...boards].sort((a, b) => a.name.localeCompare(b.name)),
+    [boards],
+  );
+
+  const selectedBoardId = useMemo(() => {
+    if (rawBoardId && boards.some((b) => b.id === rawBoardId)) {
+      return rawBoardId;
+    }
+    return sortedBoards[0]?.id ?? null;
+  }, [rawBoardId, boards, sortedBoards]);
+
+  const agentsQueryParams = useMemo(
+    () => (selectedBoardId ? { board_id: selectedBoardId } : undefined),
+    [selectedBoardId],
+  );
+  const agentsKey = getListAgentsApiV1AgentsGetQueryKey(agentsQueryParams);
+
+  const agentsQuery = useListAgentsApiV1AgentsGet<
+    listAgentsApiV1AgentsGetResponse,
+    ApiError
+  >(agentsQueryParams, {
+    query: {
+      enabled: Boolean(isSignedIn && isAdmin),
+      refetchInterval: 15_000,
+      refetchOnMount: "always",
+    },
+  });
+
   const agents = useMemo(
     () =>
       agentsQuery.data?.status === 200
@@ -176,6 +200,30 @@ export default function AgentsPage() {
     });
   };
 
+  useEffect(() => {
+    if (!rawBoardId && sortedBoards.length > 0) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set(BOARD_FILTER_PARAM, sortedBoards[0].id);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }
+  }, [pathname, rawBoardId, router, searchParams, sortedBoards]);
+
+  const handleBoardSelect = (boardId: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set(BOARD_FILTER_PARAM, boardId);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const selectedBoard = useMemo(
+    () => boards.find((b) => b.id === selectedBoardId) ?? null,
+    [boards, selectedBoardId],
+  );
+
+  const descriptionText =
+    selectedBoard != null
+      ? `${agents.length} agent${agents.length === 1 ? "" : "s"} on ${selectedBoard.name}.`
+      : `${agents.length} agent${agents.length === 1 ? "" : "s"}.`;
+
   return (
     <>
       <DashboardPageLayout
@@ -185,7 +233,7 @@ export default function AgentsPage() {
           signUpForceRedirectUrl: "/agents",
         }}
         title="Agents"
-        description={`${agents.length} agent${agents.length === 1 ? "" : "s"} total.`}
+        description={descriptionText}
         headerActions={
           agents.length > 0 ? (
             <Button onClick={() => router.push("/agents/new")}>
@@ -197,6 +245,27 @@ export default function AgentsPage() {
         adminOnlyMessage="Only organization owners and admins can access agents."
         stickyHeader
       >
+        {sortedBoards.length > 0 ? (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            {sortedBoards.map((board) => {
+              const isSelected = selectedBoardId === board.id;
+              return (
+                <button
+                  key={board.id}
+                  type="button"
+                  onClick={() => handleBoardSelect(board.id)}
+                  className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                    isSelected
+                      ? "bg-blue-100 text-blue-800"
+                      : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  {board.name}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <AgentsTable
             agents={agents}

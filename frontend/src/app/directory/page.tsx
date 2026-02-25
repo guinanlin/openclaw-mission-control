@@ -2,10 +2,12 @@
 
 export const dynamic = "force-dynamic";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/auth/clerk";
 import { ConfigTree } from "@/components/directory/ConfigTree";
+import { FileContentViewer } from "@/components/directory/FileContentViewer";
 import { DashboardPageLayout } from "@/components/templates/DashboardPageLayout";
 import { buttonVariants } from "@/components/ui/button";
 import { getConfigTree } from "@/api/openclaw-config";
@@ -15,6 +17,7 @@ import { useOrganizationMembership } from "@/lib/use-organization-membership";
 export default function DirectoryPage() {
   const { isSignedIn } = useAuth();
   const { isAdmin } = useOrganizationMembership(isSignedIn);
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
 
   const treeQuery = useQuery({
     queryKey: ["openclaw-config-tree"],
@@ -83,11 +86,20 @@ export default function DirectoryPage() {
           </button>
         </div>
       ) : data ? (
-        <ConfigTree
-          root={data.root}
-          tree={data.tree}
-          onRefresh={() => refetch()}
-        />
+        <div className="flex h-[calc(100vh-220px)] min-h-[400px] gap-4">
+          <div className="w-[30%] min-w-[200px] flex-shrink-0">
+            <ConfigTree
+              root={data.root}
+              tree={data.tree}
+              onRefresh={() => refetch()}
+              onFileSelect={setSelectedPath}
+              selectedPath={selectedPath}
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <FileContentViewer relativePath={selectedPath} />
+          </div>
+        </div>
       ) : null}
     </DashboardPageLayout>
   );
