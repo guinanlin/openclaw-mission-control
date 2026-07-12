@@ -108,7 +108,7 @@ const MARKDOWN_CODE_COMPONENTS: Components = {
   pre: ({ node: _node, className, ...props }) => (
     <pre
       className={cn(
-        "my-3 overflow-x-auto rounded-lg bg-slate-950 p-3 text-xs leading-relaxed text-slate-100",
+        "my-3 max-w-full overflow-x-auto rounded-lg bg-slate-950 p-3 text-xs leading-relaxed text-slate-100",
         className,
       )}
       {...props}

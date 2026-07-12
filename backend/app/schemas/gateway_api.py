@@ -61,3 +61,9 @@ class GatewayCommandsResponse(SQLModel):
     protocol_version: int
     methods: list[str]
     events: list[str]
+
+
+class GatewayModelsResponse(SQLModel):
+    """List of models available on the gateway."""
+
+    models: list[object]

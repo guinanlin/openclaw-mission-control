@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     # Auth mode: "clerk" for Clerk JWT auth, "local" for shared bearer token auth.
     auth_mode: AuthMode
     local_auth_token: str = ""
+    # Optional seed for local auth users: "username|password_hash|bound_token" per entry, comma-separated.
+    # First user is created with is_super_admin=True. Pipe must not appear in token.
+    local_auth_seed_users: str = ""
 
     # Clerk auth (auth only; roles stored in DB)
     clerk_secret_key: str = ""

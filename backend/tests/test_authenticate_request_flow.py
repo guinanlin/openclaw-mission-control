@@ -112,9 +112,13 @@ async def test_get_auth_context_local_mode_requires_valid_bearer_token(
     monkeypatch.setattr(auth.settings, "auth_mode", AuthMode.LOCAL)
     monkeypatch.setattr(auth.settings, "local_auth_token", "expected-token")
 
+    async def _fake_resolve_by_token(_session: Any, _token: str) -> None:
+        return None
+
     async def _fake_local_user(_session: Any) -> User:
         return User(clerk_user_id="local-auth-user", email="local@localhost", name="Local User")
 
+    monkeypatch.setattr(auth, "_resolve_user_by_local_auth_token", _fake_resolve_by_token)
     monkeypatch.setattr(auth, "_get_or_create_local_user", _fake_local_user)
 
     ctx = await auth.get_auth_context(  # type: ignore[arg-type]
@@ -129,16 +133,50 @@ async def test_get_auth_context_local_mode_requires_valid_bearer_token(
 
 
 @pytest.mark.asyncio
+async def test_get_auth_context_local_mode_uses_local_auth_user_when_token_bound(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(auth.settings, "auth_mode", AuthMode.LOCAL)
+    monkeypatch.setattr(auth.settings, "local_auth_token", "fallback-token")
+
+    bound_user = User(
+        clerk_user_id="local:alice",
+        email="alice@local",
+        name="Alice",
+    )
+
+    async def _fake_resolve_by_token(_session: Any, token: str) -> User | None:
+        if token == "bound-token-alice":
+            return bound_user
+        return None
+
+    async def _fake_ensure_member(_session: Any, _user: User) -> None:
+        return None
+
+    monkeypatch.setattr(auth, "_resolve_user_by_local_auth_token", _fake_resolve_by_token)
+
+    import app.services.organizations as orgs
+
+    monkeypatch.setattr(orgs, "ensure_member_for_user", _fake_ensure_member)
+
+    ctx = await auth.get_auth_context(  # type: ignore[arg-type]
+        request=SimpleNamespace(headers={"Authorization": "Bearer bound-token-alice"}),
+        credentials=None,
+        session=_FakeSession(),  # type: ignore[arg-type]
+    )
+
+    assert ctx.actor_type == "user"
+    assert ctx.user is not None
+    assert ctx.user.clerk_user_id == "local:alice"
+    assert ctx.user.email == "alice@local"
+
+
+@pytest.mark.asyncio
 async def test_get_auth_context_optional_local_mode_returns_none_without_token(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(auth.settings, "auth_mode", AuthMode.LOCAL)
     monkeypatch.setattr(auth.settings, "local_auth_token", "expected-token")
-
-    async def _boom(_session: Any) -> User:  # pragma: no cover
-        raise AssertionError("_get_or_create_local_user should not be called")
-
-    monkeypatch.setattr(auth, "_get_or_create_local_user", _boom)
 
     out = await auth.get_auth_context_optional(  # type: ignore[arg-type]
         request=SimpleNamespace(headers={}),

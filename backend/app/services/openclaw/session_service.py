@@ -17,6 +17,7 @@ from app.schemas.gateway_api import (
     GatewaySessionMessageRequest,
     GatewaySessionResponse,
     GatewaySessionsResponse,
+    GatewayModelsResponse,
     GatewaysStatusResponse,
 )
 from app.services.openclaw.db_service import OpenClawDBService
@@ -27,6 +28,7 @@ from app.services.openclaw.gateway_rpc import (
     OpenClawGatewayError,
     ensure_session,
     get_chat_history,
+    list_models,
     openclaw_call,
     send_message,
 )
@@ -331,6 +333,9 @@ class GatewaySessionService(OpenClawDBService):
         board, config, _ = await self.require_gateway(board_id, user=user)
         self._require_same_org(board, organization_id)
         try:
+            # Session keys referenced by channels may exist before runtime session state.
+            # Ensure the session exists so history/message calls are reliable.
+            await ensure_session(session_id, config=config)
             history = await get_chat_history(session_id, config=config)
         except OpenClawGatewayError as exc:
             raise HTTPException(
@@ -354,11 +359,34 @@ class GatewaySessionService(OpenClawDBService):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
         await require_board_access(self.session, user=user, board=board, write=True)
         try:
+            # Always ensure session exists before sending.
             if main_session and session_id == main_session:
                 await ensure_session(main_session, config=config, label="Gateway Agent")
+            else:
+                await ensure_session(session_id, config=config)
             await send_message(payload.content, session_key=session_id, config=config)
         except OpenClawGatewayError as exc:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail=str(exc),
             ) from exc
+
+    async def get_models_list(
+        self,
+        *,
+        board_id: str | None,
+        organization_id: UUID,
+        user: User | None,
+    ) -> GatewayModelsResponse:
+        board, config, _ = await self.require_gateway(board_id, user=user)
+        self._require_same_org(board, organization_id)
+        try:
+            raw = await list_models(config=config)
+        except OpenClawGatewayError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=str(exc),
+            ) from exc
+        if isinstance(raw, dict) and isinstance(raw.get("models"), list):
+            return GatewayModelsResponse(models=raw["models"])
+        return GatewayModelsResponse(models=self.as_object_list(raw))

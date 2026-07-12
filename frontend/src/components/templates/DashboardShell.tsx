@@ -122,8 +122,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-app text-strong">
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-[260px_1fr_auto] items-center gap-0 py-3">
-          <div className="flex items-center px-6">
+        <div className="grid grid-cols-[260px_1fr_auto] items-center gap-0 py-2 px-1">
+          <div className="flex items-center pl-4 pr-2">
             <BrandMark />
           </div>
           <SignedIn>
@@ -134,19 +134,19 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             </div>
           </SignedIn>
           <SignedIn>
-            <div className="flex items-center gap-3 px-6">
+            <div className="flex items-center gap-2 pl-2 pr-4">
               <div className="hidden text-right lg:block">
-                <p className="text-sm font-semibold text-slate-900">
+                <p className="text-sm font-semibold leading-tight text-slate-900">
                   {displayName}
                 </p>
-                <p className="text-xs text-slate-500">Operator</p>
+                <p className="text-xs leading-tight text-slate-500">Operator</p>
               </div>
               <UserMenu displayName={displayName} displayEmail={displayEmail} />
             </div>
           </SignedIn>
         </div>
       </header>
-      <div className="grid min-h-[calc(100vh-64px)] grid-cols-[260px_1fr] bg-slate-50">
+      <div className="grid min-h-[calc(100vh-56px)] grid-cols-[260px_1fr] bg-slate-50">
         {children}
       </div>
     </div>

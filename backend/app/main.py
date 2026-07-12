@@ -21,6 +21,7 @@ from app.api.board_memory import router as board_memory_router
 from app.api.board_onboarding import router as board_onboarding_router
 from app.api.board_webhooks import router as board_webhooks_router
 from app.api.boards import router as boards_router
+from app.api.botchat import router as botchat_router
 from app.api.gateway import router as gateway_router
 from app.api.gateways import router as gateways_router
 from app.api.metrics import router as metrics_router
@@ -35,7 +36,7 @@ from app.api.users import router as users_router
 from app.core.config import settings
 from app.core.error_handling import install_error_handling
 from app.core.logging import configure_logging, get_logger
-from app.db.session import init_db
+from app.db.session import init_db, async_session_maker
 from app.schemas.health import HealthStatusResponse
 
 if TYPE_CHECKING:
@@ -99,6 +100,10 @@ OPENAPI_TAGS = [
     {
         "name": "boards",
         "description": "Board lifecycle, configuration, and board-level management endpoints.",
+    },
+    {
+        "name": "botchat",
+        "description": "BotChat integration: get-or-create board for channels, used by Messages UI.",
     },
     {
         "name": "board-memory",
@@ -175,6 +180,7 @@ _OPENAPI_EXAMPLE_TAGS = {
     "board-groups",
     "board-group-memory",
     "boards",
+    "botchat",
     "board-memory",
     "board-webhooks",
     "board-onboarding",
@@ -442,6 +448,11 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         settings.db_auto_migrate,
     )
     await init_db()
+    if getattr(settings, "local_auth_seed_users", "").strip():
+        from app.services.local_auth_seed import run_local_auth_seed
+
+        async with async_session_maker() as seed_session:
+            await run_local_auth_seed(seed_session)
     logger.info("app.lifecycle.started")
     try:
         yield
@@ -542,6 +553,7 @@ api_v1.include_router(skills_marketplace_router)
 api_v1.include_router(board_groups_router)
 api_v1.include_router(board_group_memory_router)
 api_v1.include_router(boards_router)
+api_v1.include_router(botchat_router)
 api_v1.include_router(board_memory_router)
 api_v1.include_router(board_webhooks_router)
 api_v1.include_router(board_onboarding_router)

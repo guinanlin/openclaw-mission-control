@@ -30,12 +30,14 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, ValidationError
 from starlette.concurrency import run_in_threadpool
+from sqlmodel import select
 
 from app.core.auth_mode import AuthMode
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.db import crud
 from app.db.session import get_session
+from app.models.local_auth_user import LocalAuthUser
 from app.models.users import User
 
 if TYPE_CHECKING:
@@ -407,6 +409,23 @@ async def _get_or_create_local_user(session: AsyncSession) -> User:
     return user
 
 
+async def _resolve_user_by_local_auth_token(
+    session: AsyncSession,
+    token: str,
+) -> User | None:
+    """Resolve User from local_auth_users by bound_access_token (constant-time compare)."""
+    statement = select(LocalAuthUser)
+    result = await session.exec(statement)
+    rows = list(result.all())
+    for row in rows:
+        if compare_digest(token, row.bound_access_token):
+            user = await session.get(User, row.user_id)
+            if user is not None:
+                return user
+            return None
+    return None
+
+
 async def _resolve_local_auth_context(
     *,
     request: Request,
@@ -418,6 +437,12 @@ async def _resolve_local_auth_context(
         if required:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
         return None
+    user = await _resolve_user_by_local_auth_token(session, token)
+    if user is not None:
+        from app.services.organizations import ensure_member_for_user
+
+        await ensure_member_for_user(session, user)
+        return AuthContext(actor_type="user", user=user)
     expected = settings.local_auth_token.strip()
     if not expected or not compare_digest(token, expected):
         if required:

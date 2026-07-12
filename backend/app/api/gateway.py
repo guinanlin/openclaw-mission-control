@@ -18,6 +18,7 @@ from app.schemas.gateway_api import (
     GatewaySessionResponse,
     GatewaySessionsResponse,
     GatewaysStatusResponse,
+    GatewayModelsResponse,
 )
 from app.services.openclaw.gateway_rpc import GATEWAY_EVENTS, GATEWAY_METHODS, PROTOCOL_VERSION
 from app.services.openclaw.session_service import GatewaySessionService
@@ -147,4 +148,20 @@ async def gateway_commands(
         protocol_version=PROTOCOL_VERSION,
         methods=GATEWAY_METHODS,
         events=GATEWAY_EVENTS,
+    )
+
+
+@router.get("/models", response_model=GatewayModelsResponse)
+async def list_gateway_models(
+    board_id: str | None = BOARD_ID_QUERY,
+    session: AsyncSession = SESSION_DEP,
+    auth: AuthContext = AUTH_DEP,
+    ctx: OrganizationContext = ORG_ADMIN_DEP,
+) -> GatewayModelsResponse:
+    """List models available on the gateway for the given board."""
+    service = GatewaySessionService(session)
+    return await service.get_models_list(
+        board_id=board_id,
+        organization_id=ctx.organization.id,
+        user=auth.user,
     )

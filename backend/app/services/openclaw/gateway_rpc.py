@@ -483,3 +483,8 @@ async def ensure_session(
     if label:
         params["label"] = label
     return await openclaw_call("sessions.patch", params, config=config)
+
+
+async def list_models(config: GatewayConfig) -> object:
+    """List available models from the gateway."""
+    return await openclaw_call("models.list", {}, config=config)

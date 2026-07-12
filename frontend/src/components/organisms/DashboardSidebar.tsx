@@ -13,10 +13,12 @@ import {
   FolderTree,
   Building2,
   LayoutGrid,
+  MessageSquare,
   Network,
   Settings,
   Store,
   Tags,
+  Workflow,
 } from "lucide-react";
 
 import { useAuth } from "@/auth/clerk";
@@ -72,20 +74,20 @@ export function DashboardSidebar() {
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-slate-200 bg-white">
-      <div className="flex-1 px-3 py-4">
+      <div className="flex-1 px-3 py-3">
         <p className="px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
           Navigation
         </p>
-        <nav className="mt-3 space-y-4 text-sm">
+        <nav className="mt-2 space-y-2 text-sm">
           <div>
             <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               Overview
             </p>
-            <div className="mt-1 space-y-1">
+            <div className="mt-0.5 space-y-1">
               <Link
                 href="/dashboard"
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-700 transition",
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-slate-700 transition",
                   pathname === "/dashboard"
                     ? "bg-blue-100 text-blue-800 font-medium"
                     : "hover:bg-slate-100",
@@ -97,7 +99,7 @@ export function DashboardSidebar() {
               <Link
                 href="/activity"
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-700 transition",
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-slate-700 transition",
                   pathname.startsWith("/activity")
                     ? "bg-blue-100 text-blue-800 font-medium"
                     : "hover:bg-slate-100",
@@ -113,11 +115,11 @@ export function DashboardSidebar() {
             <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               Boards
             </p>
-            <div className="mt-1 space-y-1">
+            <div className="mt-0.5 space-y-1">
               <Link
                 href="/board-groups"
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-700 transition",
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-slate-700 transition",
                   pathname.startsWith("/board-groups")
                     ? "bg-blue-100 text-blue-800 font-medium"
                     : "hover:bg-slate-100",
@@ -129,7 +131,7 @@ export function DashboardSidebar() {
               <Link
                 href="/boards"
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-700 transition",
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-slate-700 transition",
                   pathname.startsWith("/boards")
                     ? "bg-blue-100 text-blue-800 font-medium"
                     : "hover:bg-slate-100",
@@ -141,7 +143,7 @@ export function DashboardSidebar() {
               <Link
                 href="/tags"
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-700 transition",
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-slate-700 transition",
                   pathname.startsWith("/tags")
                     ? "bg-blue-100 text-blue-800 font-medium"
                     : "hover:bg-slate-100",
@@ -153,7 +155,7 @@ export function DashboardSidebar() {
               <Link
                 href={approvalsHref}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-700 transition",
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-slate-700 transition",
                   pathname === "/approvals" || pathname.endsWith("/approvals")
                     ? "bg-blue-100 text-blue-800 font-medium"
                     : "hover:bg-slate-100",
@@ -166,7 +168,7 @@ export function DashboardSidebar() {
                 <Link
                   href="/custom-fields"
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-700 transition",
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-slate-700 transition",
                     pathname.startsWith("/custom-fields")
                       ? "bg-blue-100 text-blue-800 font-medium"
                       : "hover:bg-slate-100",
@@ -176,6 +178,35 @@ export function DashboardSidebar() {
                   Custom fields
                 </Link>
               ) : null}
+              <p className="mt-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                BotChat
+              </p>
+              <div className="mt-0.5 space-y-1">
+                <Link
+                  href="/botchat/messages"
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-slate-700 transition",
+                    pathname.startsWith("/botchat/messages")
+                      ? "bg-blue-100 text-blue-800 font-medium"
+                      : "hover:bg-slate-100",
+                  )}
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Messages
+                </Link>
+                <Link
+                  href="/botchat/automations"
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-slate-700 transition",
+                    pathname.startsWith("/botchat/automations")
+                      ? "bg-blue-100 text-blue-800 font-medium"
+                      : "hover:bg-slate-100",
+                  )}
+                >
+                  <Workflow className="h-4 w-4" />
+                  AutoMations
+                </Link>
+              </div>
             </div>
           </div>
 
@@ -185,11 +216,11 @@ export function DashboardSidebar() {
                 <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                   Skills
                 </p>
-                <div className="mt-1 space-y-1">
+                <div className="mt-0.5 space-y-1">
                   <Link
                     href="/skills/marketplace"
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-700 transition",
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-slate-700 transition",
                       pathname === "/skills" ||
                         pathname.startsWith("/skills/marketplace")
                         ? "bg-blue-100 text-blue-800 font-medium"
@@ -202,7 +233,7 @@ export function DashboardSidebar() {
                   <Link
                     href="/skills/packs"
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-700 transition",
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-slate-700 transition",
                       pathname.startsWith("/skills/packs")
                         ? "bg-blue-100 text-blue-800 font-medium"
                         : "hover:bg-slate-100",
@@ -220,11 +251,11 @@ export function DashboardSidebar() {
             <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               Administration
             </p>
-            <div className="mt-1 space-y-1">
+            <div className="mt-0.5 space-y-1">
               <Link
                 href="/organization"
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-700 transition",
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-slate-700 transition",
                   pathname.startsWith("/organization")
                     ? "bg-blue-100 text-blue-800 font-medium"
                     : "hover:bg-slate-100",
@@ -237,7 +268,7 @@ export function DashboardSidebar() {
                 <Link
                   href="/gateways"
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-700 transition",
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-slate-700 transition",
                     pathname.startsWith("/gateways")
                       ? "bg-blue-100 text-blue-800 font-medium"
                       : "hover:bg-slate-100",
@@ -251,7 +282,7 @@ export function DashboardSidebar() {
                 <Link
                   href="/main-agent"
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-700 transition",
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-slate-700 transition",
                     pathname.startsWith("/main-agent")
                       ? "bg-blue-100 text-blue-800 font-medium"
                       : "hover:bg-slate-100",
@@ -265,7 +296,7 @@ export function DashboardSidebar() {
                 <Link
                   href="/agents"
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-700 transition",
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-slate-700 transition",
                     pathname.startsWith("/agents")
                       ? "bg-blue-100 text-blue-800 font-medium"
                       : "hover:bg-slate-100",
@@ -279,7 +310,7 @@ export function DashboardSidebar() {
                 <Link
                   href="/directory"
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-700 transition",
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-slate-700 transition",
                     pathname.startsWith("/directory")
                       ? "bg-blue-100 text-blue-800 font-medium"
                       : "hover:bg-slate-100",

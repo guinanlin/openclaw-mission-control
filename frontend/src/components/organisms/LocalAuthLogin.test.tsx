@@ -18,23 +18,84 @@ vi.mock("@/auth/localAuth", async () => {
   };
 });
 
+vi.mock("@/lib/api-base", () => ({
+  getApiBaseUrl: () => "http://localhost:8000",
+}));
+
+function switchToTokenEntry(user: ReturnType<typeof userEvent.setup>) {
+  return user.click(screen.getByRole("button", { name: /use access token instead/i }));
+}
+
 describe("LocalAuthLogin", () => {
   beforeEach(() => {
     fetchMock.mockReset();
     setLocalAuthTokenMock.mockReset();
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://localhost:8000/");
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
-    vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
 
-  it("requires a non-empty token", async () => {
+  it("password login: requires username", async () => {
     const user = userEvent.setup();
     render(<LocalAuthLogin />);
+
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect(screen.getByText("Username is required.")).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(setLocalAuthTokenMock).not.toHaveBeenCalled();
+  });
+
+  it("password login: saves token and calls onAuthenticated after successful login", async () => {
+    const onAuthenticatedMock = vi.fn();
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ access_token: "g".repeat(50) }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    const user = userEvent.setup();
+    render(<LocalAuthLogin onAuthenticated={onAuthenticatedMock} />);
+
+    await user.type(screen.getByPlaceholderText("Username"), "admin");
+    await user.type(screen.getByPlaceholderText("Password"), "secret");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+
+    await waitFor(() =>
+      expect(setLocalAuthTokenMock).toHaveBeenCalledWith("g".repeat(50)),
+    );
+    expect(onAuthenticatedMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8000/api/v1/auth/local/login",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ username: "admin", password: "secret" }),
+      }),
+    );
+  });
+
+  it("password login: shows error on 401", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 401 }));
+    const user = userEvent.setup();
+    render(<LocalAuthLogin />);
+
+    await user.type(screen.getByPlaceholderText("Username"), "u");
+    await user.type(screen.getByPlaceholderText("Password"), "p");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+
+    await waitFor(() =>
+      expect(screen.getByText("Invalid username or password.")).toBeInTheDocument(),
+    );
+    expect(setLocalAuthTokenMock).not.toHaveBeenCalled();
+  });
+
+  it("token flow: requires a non-empty token", async () => {
+    const user = userEvent.setup();
+    render(<LocalAuthLogin />);
+    await switchToTokenEntry(user);
 
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
@@ -43,9 +104,10 @@ describe("LocalAuthLogin", () => {
     expect(setLocalAuthTokenMock).not.toHaveBeenCalled();
   });
 
-  it("requires token length of at least 50 characters", async () => {
+  it("token flow: requires token length of at least 50 characters", async () => {
     const user = userEvent.setup();
     render(<LocalAuthLogin />);
+    await switchToTokenEntry(user);
 
     await user.type(screen.getByPlaceholderText("Paste token"), "x".repeat(49));
     await user.click(screen.getByRole("button", { name: "Continue" }));
@@ -57,11 +119,12 @@ describe("LocalAuthLogin", () => {
     expect(setLocalAuthTokenMock).not.toHaveBeenCalled();
   });
 
-  it("rejects invalid token values", async () => {
+  it("token flow: rejects invalid token values", async () => {
     const onAuthenticatedMock = vi.fn();
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 401 }));
     const user = userEvent.setup();
     render(<LocalAuthLogin onAuthenticated={onAuthenticatedMock} />);
+    await switchToTokenEntry(user);
 
     await user.type(screen.getByPlaceholderText("Paste token"), "x".repeat(50));
     await user.click(screen.getByRole("button", { name: "Continue" }));
@@ -80,11 +143,12 @@ describe("LocalAuthLogin", () => {
     expect(onAuthenticatedMock).not.toHaveBeenCalled();
   });
 
-  it("saves token only after successful backend validation", async () => {
+  it("token flow: saves token only after successful backend validation", async () => {
     const onAuthenticatedMock = vi.fn();
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 200 }));
     const user = userEvent.setup();
     render(<LocalAuthLogin onAuthenticated={onAuthenticatedMock} />);
+    await switchToTokenEntry(user);
 
     const token = `  ${"g".repeat(50)} `;
     await user.type(screen.getByPlaceholderText("Paste token"), token);
@@ -96,11 +160,12 @@ describe("LocalAuthLogin", () => {
     expect(onAuthenticatedMock).toHaveBeenCalledTimes(1);
   });
 
-  it("shows a clear error when backend is unreachable", async () => {
+  it("token flow: shows a clear error when backend is unreachable", async () => {
     const onAuthenticatedMock = vi.fn();
     fetchMock.mockRejectedValueOnce(new TypeError("network error"));
     const user = userEvent.setup();
     render(<LocalAuthLogin onAuthenticated={onAuthenticatedMock} />);
+    await switchToTokenEntry(user);
 
     await user.type(screen.getByPlaceholderText("Paste token"), "t".repeat(50));
     await user.click(screen.getByRole("button", { name: "Continue" }));

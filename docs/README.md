@@ -10,6 +10,8 @@ This folder is the starting point for Mission Control documentation.
 - [Deployment](./deployment/README.md)
 - [Production notes](./production/README.md)
 - [Troubleshooting](./troubleshooting/README.md)
+- [Self-Host 本地认证：用户名密码登录与用户绑定 Token 需求](./features/local-auth-username-password-requirements.md)
+- [本地认证操作手册](./本地认证-操作手册.md)（配置与登录步骤）
 - [Gateway WebSocket protocol](./openclaw_gateway_ws.md)
 - [OpenClaw baseline configuration](./openclaw_baseline_config.md)
 

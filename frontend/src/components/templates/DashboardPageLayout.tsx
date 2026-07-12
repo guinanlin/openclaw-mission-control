@@ -22,6 +22,8 @@ type DashboardPageLayoutProps = {
   signedOut?: SignedOutConfig;
   title: ReactNode;
   description?: ReactNode;
+  /** When true, the page header (title + description block) is not rendered. */
+  hideHeader?: boolean;
   headerActions?: ReactNode;
   children: ReactNode;
   isAdmin?: boolean;
@@ -37,6 +39,7 @@ export function DashboardPageLayout({
   signedOut,
   title,
   description,
+  hideHeader = false,
   headerActions,
   children,
   isAdmin,
@@ -70,40 +73,42 @@ export function DashboardPageLayout({
           ref={mainRef}
           className={cn("flex-1 overflow-y-auto bg-slate-50", mainClassName)}
         >
-          <div
-            className={cn(
-              "border-b border-slate-200 bg-white",
-              stickyHeader && "sticky top-0 z-30",
-              headerClassName,
-            )}
-          >
-            <div className="px-8 py-6">
-              {headerActions ? (
-                <div className="flex flex-wrap items-center justify-between gap-4">
+          {!hideHeader && (
+            <div
+              className={cn(
+                "border-b border-slate-200 bg-white",
+                stickyHeader && "sticky top-0 z-30",
+                headerClassName,
+              )}
+            >
+              <div className="px-8 py-6">
+                {headerActions ? (
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">
+                        {title}
+                      </h1>
+                      {description ? (
+                        <p className="mt-1 text-sm text-slate-500">
+                          {description}
+                        </p>
+                      ) : null}
+                    </div>
+                    {headerActions}
+                  </div>
+                ) : (
                   <div>
                     <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">
                       {title}
                     </h1>
                     {description ? (
-                      <p className="mt-1 text-sm text-slate-500">
-                        {description}
-                      </p>
+                      <p className="mt-1 text-sm text-slate-500">{description}</p>
                     ) : null}
                   </div>
-                  {headerActions}
-                </div>
-              ) : (
-                <div>
-                  <h1 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">
-                    {title}
-                  </h1>
-                  {description ? (
-                    <p className="mt-1 text-sm text-slate-500">{description}</p>
-                  ) : null}
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className={cn("p-8", contentClassName)}>
             {showAdminOnlyNotice ? (
